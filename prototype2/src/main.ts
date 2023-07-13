@@ -112,6 +112,7 @@ function pyramidEstimate(location: ZXY, func: CallableFunction, inputs: IPyramid
 
         const makeEstimateFunction = () => {
 
+            // @TODO: pick directions with lower degree with higher likelihood - and those with degree 1 with prob = 0
             const randomlyPickedDirection = ['tl', 'tr', 'br', 'bl'][Math.floor(Math.random() * 4)];
 
             const result = childEstimateStreams[randomlyPickedDirection].next();

@@ -122,7 +122,7 @@ class Node:
             for i, child in enumerate(self.children):
                 for result in child.calculate(mapFunc, reduceFunc):
                     childResults[i] = result["estimate"]
-                    degree = result["degree"] * (i+1) / len(self.children)
+                    degree = (result["degree"] + i) / len(self.children)
                     estimate = reduceFunc(childResults, self.z, self.x, self.y)
                     yield { 
                         "degree": degree,

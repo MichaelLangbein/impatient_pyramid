@@ -21,6 +21,11 @@ In detail:
 - **Sampling**: to get the aggregated value at some pyramid-tile, don't use all datapoints in the tile's sub-pyramid, but instead just sample a few.
 
 
+If a scene has $n$ pixels, we might commonly do $n$ per-pixel-operations and 1 aggregation-operation to arrive at some value.
+With sampling and streaming, we do an aggregation-operation every time we look at a new value - meaning $n$ per-pixel-operations and $n$ aggregations.
+But if we decide that, for example, looking at 10% of all pixels is enough to give us a decent estimate of our value, we can cut off our calculation early - meaning overall we use $0.1 * (n + n) = 0.2n$ instead of $n$ operations in total.
+
+
 ## prototype 1
 Hacked together really quickly so I wouldn't forget the basic idea.
 

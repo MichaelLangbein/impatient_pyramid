@@ -1,6 +1,6 @@
 # Impatient pyramids
 
-<img width="200px" src="./logo.svg">
+<img width="400px" src="./logo.svg">
 
 Setting:
 - In mapping-applications, we sometimes wait for a long time until results are calculated.
@@ -25,6 +25,9 @@ If a scene has $n$ pixels, we might commonly do $n$ per-pixel-operations and 1 a
 With sampling and streaming, we do an aggregation-operation every time we look at a new value - meaning $n$ per-pixel-operations and $n$ aggregations.
 But if we decide that, for example, looking at 10% of all pixels is enough to give us a decent estimate of our value, we can cut off our calculation early - meaning overall we use $0.1 * (n + n) = 0.2n$ instead of $n$ operations in total.
 
+
+Some functions converge quicker than others through sampling. The function `mean` can be approximated with very few samples, but the function `max` might radically change at the last few samples.
+Try to use functions that converge nicely.
 
 ## prototype 1
 Hacked together really quickly so I wouldn't forget the basic idea.

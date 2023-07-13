@@ -1,193 +1,158 @@
-type ZXY = {z: number, x: number, y: number};
+import exp from 'constants';
+import { ZXY, Pyramid, PyramidValue, RasterPyramidValue, DirectionEstimates } from './pyramids.generic';
 
-class Pyramid {
-    constructor(readonly nrLevels: number) {}
 
-    public isBottom(location: ZXY): boolean {
-        return location.z >= this.nrLevels;
+
+interface DamageDegrees {
+    d0: number,
+    d1: number,
+    d2: number,
+    d3: number,
+}
+
+interface Exposure {
+    nrBuildings: {
+        wood: number,
+        brick: number,
+        steel: number
     }
-
-    public getChildren(location: ZXY): {tl: ZXY, tr: ZXY, br: ZXY, bl: ZXY} {
-        if (location.z > this.nrLevels) throw Error(`No children below level ${this.nrLevels}. Requested level ${location.z}.`);
-        const br = {z: location.z + 1, x: 2 * location.x, y: 2 * location.y};
-        const bl = {...br, x: br.x - 1};
-        const tl = {...bl, y: bl.y - 1};
-        const tr = {...tl, x: tl.x + 1};
-        return {tl, tr, br, bl};
-    }
-}
-
-
-interface IPyramidValue {
-    getEstimateAt(location: ZXY): IEstimateStream;
-}
-
-interface IPyramidValue {
-    getEstimateAt(location: ZXY): IEstimateStream;
-}
-
-class PyramidValue implements IPyramidValue {
-    // @TODO: reduce should be mean() by default
-    constructor (private func: CallableFunction, private inputs: IPyramidValue[]) {}
-
-    getEstimateAt(location: ZXY) {
-        return pyramidEstimate(location, this.func, this.inputs);
+    damage: {
+        wood: DamageDegrees,
+        brick: DamageDegrees,
+        steel: DamageDegrees
     }
 }
 
-class RasterPyramidValue {
-    constructor (private pyramid: Pyramid, private raster: number[][]) {}
-
-    getEstimateAt(location: ZXY) {
-        const value = this.getGridValueAt(location);
-        return new IdentityEstimateStream(value);
-    }
-
-    private getGridValueAt(location: ZXY) {
-        // @TODO: account for z. Aggreagate through mean, I guess.
-        // Also, should probably somehow use this.pyramid
-        return this.raster[location.y - 1][location.x - 1];
-    }
-}
-
-
-interface Estimate {
-    degree: number, 
-    estimate: number
-}
-
-interface IEstimateStream {
-    next(): Estimate;
-}
-
-class IdentityEstimateStream implements IEstimateStream {
-    constructor(private value: number) {}
-    next() {
-        return {degree: 1, estimate: this.value};
-    }
-}
-
-class CachedEstimateStream implements IEstimateStream {
-    
-    private lastEstimate: Estimate = {degree: 0, estimate: 0};
-
-    constructor(private makeEstimateFunction: () => Estimate) {}
-
-    next(): Estimate {
-        if (this.lastEstimate.degree >= 1) return this.lastEstimate;
-        const newEstimate = this.makeEstimateFunction();
-        this.lastEstimate = newEstimate;
-        return newEstimate;
-    }
-}
-
-function randomlyPickDirection(directionData: {'tl': Estimate, 'tr': Estimate, 'br': Estimate, 'bl': Estimate}) {
-    // Picks directions of lower degree with higher likelihood - and those with degree 1 with prob = 0
-
-    const probTlNonNorm = (1 - directionData['tl'].degree);
-    const probTrNonNorm = (1 - directionData['tr'].degree);
-    const probBrNonNorm = (1 - directionData['br'].degree);
-    const probBlNonNorm = (1 - directionData['bl'].degree);
-    const sum = probTlNonNorm + probTrNonNorm + probBrNonNorm + probBlNonNorm;
-    const probTl = probTlNonNorm / sum;
-    const probTr = probTrNonNorm / sum;
-    const probBr = probBrNonNorm / sum;
-    const probBl = probBlNonNorm / sum;
-
-
-    const randnum = Math.random();
-
-    if (randnum < probTl) return 'tl';
-    if (randnum < probTl + probTr) return 'tr';
-    if (randnum < probTl + probTr + probBr) return 'br';
-    if (randnum < probTl + probTr + probBr + probBl) return 'bl';
-
-    throw Error(`This line should be unreachable`);
-}
-
-function pyramidEstimate(location: ZXY, func: CallableFunction, inputs: IPyramidValue[]): IEstimateStream {
-
-    // Case 1: we're at bottom of pyramid. Get estimates from other pyramids and evaluate.
-    if (pyramid.isBottom(location)) {
-        const makeEstimateFunction = () => {
-           const inputStreams = inputs.map(i => i.getEstimateAt(location));
-           const inputEstimates = inputStreams.map(s => s.next());
-           const degrees = inputEstimates.map(i => i.degree);
-           const estimates = inputEstimates.map(i => i.estimate);
-           const degree = degrees.reduce((last, curr) => last * curr, 1);
-           const estimate = func(estimates);
-           return {degree, estimate};
-         }
-         return new CachedEstimateStream(makeEstimateFunction);
-    }
-
-    // Case 2: we're high up in the pyramid. Pick *some* sub-pyramid and recurse. Remember previous evaluations' results for later to update degree and estimate.
-    else {
-        const childLocations = pyramid.getChildren(location);
-
-        const childEstimateStreams: {[direction: string]: IEstimateStream} = {};
-        for (const [direction, childLocation] of Object.entries(childLocations)) {
-            const childEstimateStream = pyramidEstimate(childLocation, func, inputs);
-            childEstimateStreams[direction] = childEstimateStream;
+function createFloatRaster(rows: number, cols: number): number[][] {
+    const matrix = [];
+    for (let r = 0; r < rows; r++) {
+        const row = [];
+        for (let c = 0; c < cols; c++) {
+            row.push(Math.random());
         }
-
-        const latestResults: {'tl': Estimate, 'tr': Estimate, 'br': Estimate, 'bl': Estimate} = {'tl': {degree: 0, estimate: 0 }, 'tr': {degree: 0, estimate: 0 }, 'br': {degree: 0, estimate: 0 }, 'bl': {degree: 0, estimate: 0 }};
-
-        const makeEstimateFunction = () => {
-
-            const randomlyPickedDirection = randomlyPickDirection(latestResults);
-            const result = childEstimateStreams[randomlyPickedDirection].next();
-            latestResults[randomlyPickedDirection] = result;
-
-            let degreeTotal = 0;
-            let estimateTotal = 0;
-            for (const [direction, latestEstimate] of Object.entries(latestResults)) {
-                const {degree, estimate} = latestEstimate;
-                estimateTotal += degree * estimate / 4;
-                degreeTotal   += degree / 4;
-            }
-
-            return {degree: degreeTotal, estimate: estimateTotal};
-        };
-
-        return new CachedEstimateStream(makeEstimateFunction);
+        matrix.push(row);
     }
+    return matrix;
+}
+
+function createExposureRaster(rows: number, cols: number): Exposure[][] {
+    const matrix = [];
+    for (let r = 0; r < rows; r++) {
+        const row = [];
+        for (let c = 0; c < cols; c++) {
+            const expo: Exposure = {
+                nrBuildings: {
+                    wood: Math.random() * 100,
+                    brick: Math.random() * 100,
+                    steel: Math.random() * 100
+                },
+                damage: {
+                    wood:  { d0: 1, d1: 0, d2: 0, d3: 0 },
+                    brick: { d0: 1, d1: 0, d2: 0, d3: 0 },
+                    steel: { d0: 1, d1: 0, d2: 0, d3: 0 }
+                }
+            }
+            row.push(expo);
+        }
+        matrix.push(row);
+    }
+    return matrix;
 }
 
 
 
 
-const pyramid = new Pyramid(3);
+const level = 4;
+const rows = Math.pow(4, level-1);
+const cols = rows;
 
-const intensityPyramid = new RasterPyramidValue(pyramid, [
-    [0, 1, 1, 1],
-    [1, 2, 3, 2],
-    [2, 3, 4, 3],
-    [1, 2, 3, 2]
-]);
+const pyramid = new Pyramid(level);
 
-const exposurePyramid = new RasterPyramidValue(pyramid, [
-    [2, 1, 0, 0],
-    [3, 2, 1, 0],
-    [2, 3, 2, 1],
-    [1, 2, 3, 1]
-]);
+const intensityPyramid = new RasterPyramidValue(pyramid, createFloatRaster(rows, cols));
 
-function updateExposure([intensity, exposure]: number[]): number {
-    return intensity * exposure;
+const exposurePyramid = new RasterPyramidValue(pyramid, createExposureRaster(rows, cols));
+
+function fragility(intensity: number, state: DamageDegrees, material: 'wood' | 'brick' | 'steel'): DamageDegrees {
+    const newDamages: DamageDegrees = {
+        d0: state.d0 / intensity,
+        d1: state.d1 + 1,
+        d2: state.d2 + 2,
+        d3: state.d3 + 1
+    };
+    return newDamages;
+}
+
+function updateExposure([intensity, exposure]: [number, Exposure]): Exposure {
+    const newExposure: Exposure = {
+        nrBuildings: {
+            wood: exposure.nrBuildings.wood,
+            brick: exposure.nrBuildings.brick,
+            steel: exposure.nrBuildings.steel,
+        },
+        damage: {
+            wood:  fragility(intensity, exposure.damage.wood, 'wood'),
+            brick: fragility(intensity, exposure.damage.brick, 'brick'),
+            steel: fragility(intensity, exposure.damage.steel, 'steel'),
+        }
+    };
+    return newExposure;
+}
+
+function sum(data: any[]) {
+    return data.reduce((l, c) => l+c, 0);
+}
+
+function weightedSum(data: any[], weights: number[]) {
+    const wSum = sum(weights);
+    let out = 0;
+    for (let i = 0; i < data.length; i++) {
+        out += data[i] * weights[i] / wSum;
+    }
+    return out;
+}
+
+function reduce(directionEstimates: DirectionEstimates<Exposure>): Exposure {
+    const results = Object.values(directionEstimates);
+    const estimates = results.map(r => r.estimate).filter(e => e !== undefined);
+    const aggregatedExposure: Exposure = {
+        nrBuildings: {
+            wood:  sum(estimates.map(e => e!.nrBuildings.wood)),
+            brick: sum(estimates.map(e => e!.nrBuildings.brick)),
+            steel: sum(estimates.map(e => e!.nrBuildings.steel)),
+        },
+        damage: {
+            wood:  {
+                d0: weightedSum(estimates.map(e => e!.damage.wood.d0), estimates.map(e => e!.nrBuildings.wood)),
+                d1: weightedSum(estimates.map(e => e!.damage.wood.d1), estimates.map(e => e!.nrBuildings.wood)),
+                d2: weightedSum(estimates.map(e => e!.damage.wood.d2), estimates.map(e => e!.nrBuildings.wood)),
+                d3: weightedSum(estimates.map(e => e!.damage.wood.d3), estimates.map(e => e!.nrBuildings.wood)),
+            },
+            brick: {
+                d0: weightedSum(estimates.map(e => e!.damage.brick.d0), estimates.map(e => e!.nrBuildings.brick)),
+                d1: weightedSum(estimates.map(e => e!.damage.brick.d1), estimates.map(e => e!.nrBuildings.brick)),
+                d2: weightedSum(estimates.map(e => e!.damage.brick.d2), estimates.map(e => e!.nrBuildings.brick)),
+                d3: weightedSum(estimates.map(e => e!.damage.brick.d3), estimates.map(e => e!.nrBuildings.brick)),
+            },
+            steel: {
+                d0: weightedSum(estimates.map(e => e!.damage.steel.d0), estimates.map(e => e!.nrBuildings.steel)),
+                d1: weightedSum(estimates.map(e => e!.damage.steel.d1), estimates.map(e => e!.nrBuildings.steel)),
+                d2: weightedSum(estimates.map(e => e!.damage.steel.d2), estimates.map(e => e!.nrBuildings.steel)),
+                d3: weightedSum(estimates.map(e => e!.damage.steel.d3), estimates.map(e => e!.nrBuildings.steel)),
+            },
+        }
+    };
+    return aggregatedExposure;
 }
 
 const loc: ZXY = {z: 2, x: 1, y: 2};
 
-const updatedExposurePyramid = new PyramidValue(updateExposure, [intensityPyramid, exposurePyramid]);
+const updatedExposurePyramid = new PyramidValue(updateExposure as any, [intensityPyramid, exposurePyramid], reduce, pyramid);
 
 const estimateStream = updatedExposurePyramid.getEstimateAt(loc);
 
-const cutoff = 0.95;
+const cutoff = 0.5;
 var degree = 0;
-var estimate = 0;
 while (degree < cutoff) {
     var {degree, estimate} = estimateStream.next();
     console.log({degree, estimate});
 }
-

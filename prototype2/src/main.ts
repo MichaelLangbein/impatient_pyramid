@@ -1,54 +1,3 @@
-// /**
-//  * @TODOs
-//  * - StreamFunction: use generic, not number
-//  * - Name streams and stream-func arguments
-//  */
-
-// interface Result {
-//     degree: number,
-//     estimate: number
-// }
-
-// type StreamFunction = (inputs: number[]) => number;
-
-// interface IResultStream {
-//     next(): Result
-// }
-
-// class ResultStream implements IResultStream {
-//     private degree = 0;
-//     private estimate = 0;
-
-//     constructor(
-//         readonly func: StreamFunction,
-//         readonly inputs: IResultStream[]
-//     ) {}
-
-//     public next(): Result {
-//         if (this.degree >= 1) return {degree: 1, estimate: this.estimate};
-
-//         const inputResults = this.inputs.map(i => i.next());
-//         const degrees = inputResults.map(r => r.degree);
-//         const estimates = inputResults.map(r => r.estimate);
-//         const degree = degrees.reduce((prev, current) => current * prev, 1);
-//         const estimate = this.func(estimates);
-
-//         this.degree = degree;
-//         this.estimate = estimate;
-//         return {degree, estimate};
-//     }
-// }
-
-// class IdentityStream implements IResultStream {
-//     constructor(private value: number) {}
-
-//     public next(): Result {
-//         return {degree: 1, estimate: this.value};
-//     }
-// }
-
-
-
 type ZXY = {z: number, x: number, y: number};
 
 class Pyramid {
@@ -59,32 +8,45 @@ class Pyramid {
     }
 
     public getChildren(location: ZXY): {tl: ZXY, tr: ZXY, br: ZXY, bl: ZXY} {
-
+        if (location.z > this.nrLevels) throw Error(`No children below level ${this.nrLevels}. Requested level ${location.z}.`);
+        const br = {z: location.z + 1, x: 2 * location.x, y: 2 * location.y};
+        const bl = {...br, x: br.x - 1};
+        const tl = {...bl, y: bl.y - 1};
+        const tr = {...tl, x: tl.x + 1};
+        return {tl, tr, br, bl};
     }
 }
 
-const pyramid = new Pyramid(8);
 
-
-
-// function pyramidEstimate(location: ZXY, mapFunction: CallableFunction, reduceFunction, spatialArgs, nonSpatialArgs): ResultStream {
-//     if (pyramid.isBottom(location)) {
-//         const estimate = mapFunction()
-//     } else {
-//         const childEstimateStreams: ResultStream[] = [];
-//         for (const [direction, child] of Object.entries(pyramid.getChildren(location))) {
-//             const estimateStream = pyramidEstimate(child, mapFunction, reduceFunction, spatialArgs, nonSpatialArgs);
-//             childEstimateStreams.push(estimateStream);
-//         }
-//         return new ResultStream(reduceFunction, childEstimateStreams);
-//     }
-// }
-
-
-
-interface PyramidValue {
+interface IPyramidValue {
     getValueAt(location: ZXY): number;
 }
+
+
+class PyramidValue implements IPyramidValue {
+    // @TODO: reduce should be mean() by default
+    constuctor (private func: CallableFunction, private inputs: IPyramidValue[], private reduce: CallableFunction) {}
+
+    getEstimateAt(location: ZXY) {
+        return pyramidEstimate(location, this.func, this.inputs, this.reduce);
+    }
+}
+
+class RasterPyramidValue {
+    constructor (private pyramid: Pyramid, private raster: number[][]) {}
+
+    getEstimateAt(location: ZXY) {
+        const value = this.getGridValueAt(location);
+        return new IdentityEstimateStream(value);
+    }
+
+    private getGridValueAt(location: ZXY) {
+        // @TODO: account for z. Aggreagate through mean, I guess.
+        // Also, should probably somehow use this.pyramid
+        return this.raster[location.y][location.x];
+    }
+}
+
 
 interface Estimate {
     degree: number, 
@@ -119,41 +81,16 @@ class CachedEstimateStream implements IEstimateStream {
 
 function pyramidEstimate(location: ZXY, func: CallableFunction, inputs: PyramidValue[], reduceFunc: CallableFunction): IEstimateStream {
     if (pyramid.isBottom(location)) {
-        const inputValues = inputs.map(i => i.getValueAt(location));
-        const estimate = func(inputValues);
-        return new IdentityEstimateStream(estimate);
-        /*
-        * planning ahead: 
-        * In a second step, I'll change IPyramid value from `getValueAt(ZXY) -> number`
-        * to `getEstimateAt(ZXY) -> EstimateStream`
-        * 
-        * Then this section will change to:
-        * const makeEstimateFunction = () => {
-        *   const inputStreams = inputs.map(i => i.getEstimateAt(location));
-        *   const inputs = inputStreams.map(s => s.next());
-        *   const degrees = inputs.map(i => i.degree);
-        *   const estimates = inputs.map(i => i.estimate);
-        *   const degree = degrees.reduce((last, curr) => last * curr, 1);
-        *   const estimate = func(estimates);
-        *   return degree, estimate;
-        * }
-        * return new CachedEstimateStream(makeEstimateFunction)
-        * 
-        * A pyramid value will then have to be implemented like so:
-        * class PyramidValue implements IPyramidValue {
-        *    constuctor(private: func, private inputs, private reduce) {}
-        *    getEstimateAt(location: ZXY) {
-        *       return pyramidEstimate(location, this.func, this.inputs, this.reduce);
-        *    }
-        * }
-        * class ConcretePyramidValue implements IPyramidValue {
-        *    constructor(private raster) {}
-        *    getEstimateAt(location: ZXY) {
-        *       const value = this.getGridValueAt(location);
-        *       return IdentityEstimateStream(value);
-        *    }
-        * }
-        */
+        const makeEstimateFunction = () => {
+           const inputStreams = inputs.map(i => i.getEstimateAt(location));
+           const inputEstimates = inputStreams.map(s => s.next());
+           const degrees = inputEstimates.map(i => i.degree);
+           const estimates = inputEstimates.map(i => i.estimate);
+           const degree = degrees.reduce((last, curr) => last * curr, 1);
+           const estimate = func(estimates);
+           return {degree, estimate};
+         }
+         return new CachedEstimateStream(makeEstimateFunction)
     }
     else {
         const makeEstimateFunction = () => {
@@ -187,33 +124,38 @@ function pyramidEstimate(location: ZXY, func: CallableFunction, inputs: PyramidV
 
 
 
-interface DamageStates {
-    d1: number,
-    d2: number,
-    d3: number,
-    d4: number
-}
-interface Exposure {
-    wooden: DamageStates,
-    brick: DamageStates,
-    steal: DamageStates
-}
+const pyramid = new Pyramid(8);
 
-function updateExposure(intensity: number, exposure: Exposure, fragility: Fragility): Exposure {
-    for (const [buildingType, state] of Object.entries(exposure)) {
-        for (const [damageState, count] of Object.entries(state)) {
-            probD1, probD2, probD3, probD4 = fragility(buildingType, damageState, intensity);
-        }
-    }
-    return exposure;
-}
+const loc: ZXY = {z: 4, x: 52, y: 41};
 
-function calcMean() {
+const intensityPyramid = new RasterPyramidValue(pyramid, [
+    [0, 1, 1, 1],
+    [1, 2, 3, 2],
+    [2, 3, 4, 3],
+    [1, 2, 3, 2]
+]);
 
+const exposurePyramid = new RasterPyramidValue(pyramid, [
+    [2, 1, 0, 0],
+    [3, 2, 1, 0],
+    [2, 3, 2, 1],
+    [1, 2, 3, 1]
+]);
+
+function updateExposure(intensity: number, exposure: number): number {
+    return intensity * exposure;
 }
 
-const zxy: ZXY = {z: 4, x: 52, y: 41};
-const estimateStream = pyramidEstimate(zxy, updateExposure, [intensityPyramid, exposurePyramid], calcMean);
+function calcMean(estimates: number[]) {
+    const sum = estimates.reduce((last, curr) => last + curr, 0);
+    const count = estimates.length;
+    return sum / count;
+}
+
+const updatedExposurePyramid = new PyramidValue(updateExposure, [intensityPyramid, exposurePyramid], calcMean);
+
+const estimateStream = updatedExposurePyramid.getEstimateAt(loc);
+
 let degree = 0;
 while (degree < 1) {
     let {degree, estimate} = estimateStream.next();

@@ -1,6 +1,19 @@
-import exp from 'constants';
 import { ZXY, Pyramid, PyramidValue, RasterPyramidValue, DirectionEstimates } from './pyramids.generic';
 
+
+
+function sum(data: any[]) {
+    return data.reduce((l, c) => l+c, 0);
+}
+
+function weightedSum(data: any[], weights: number[]) {
+    const wSum = sum(weights);
+    let out = 0;
+    for (let i = 0; i < data.length; i++) {
+        out += data[i] * weights[i] / wSum;
+    }
+    return out;
+}
 
 
 interface DamageDegrees {
@@ -62,7 +75,7 @@ function createExposureRaster(rows: number, cols: number): Exposure[][] {
 
 
 
-const level = 4;
+const level = 6;
 const rows = Math.pow(4, level-1);
 const cols = rows;
 
@@ -98,19 +111,6 @@ function updateExposure([intensity, exposure]: [number, Exposure]): Exposure {
     return newExposure;
 }
 
-function sum(data: any[]) {
-    return data.reduce((l, c) => l+c, 0);
-}
-
-function weightedSum(data: any[], weights: number[]) {
-    const wSum = sum(weights);
-    let out = 0;
-    for (let i = 0; i < data.length; i++) {
-        out += data[i] * weights[i] / wSum;
-    }
-    return out;
-}
-
 function reduce(directionEstimates: DirectionEstimates<Exposure>): Exposure {
     const results = Object.values(directionEstimates);
     const estimates = results.map(r => r.estimate).filter(e => e !== undefined);
@@ -144,15 +144,18 @@ function reduce(directionEstimates: DirectionEstimates<Exposure>): Exposure {
     return aggregatedExposure;
 }
 
-const loc: ZXY = {z: 2, x: 1, y: 2};
+const loc: ZXY = {z: 1, x: 1, y: 1};
 
 const updatedExposurePyramid = new PyramidValue(updateExposure as any, [intensityPyramid, exposurePyramid], reduce, pyramid);
 
 const estimateStream = updatedExposurePyramid.getEstimateAt(loc);
 
-const cutoff = 0.5;
+let samples = 0;
+const cutoff = 0.99;
 var degree = 0;
 while (degree < cutoff) {
     var {degree, estimate} = estimateStream.next();
-    console.log({degree, estimate});
+    console.log(degree);
+    samples += 1;
 }
+console.log(`Done after ${samples} samples, out of ${rows * cols} pixels`);

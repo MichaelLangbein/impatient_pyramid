@@ -22,13 +22,16 @@ interface IPyramidValue {
     getEstimateAt(location: ZXY): IEstimateStream;
 }
 
+interface IPyramidValue {
+    getEstimateAt(location: ZXY): IEstimateStream;
+}
 
 class PyramidValue implements IPyramidValue {
     // @TODO: reduce should be mean() by default
-    constructor (private func: CallableFunction, private inputs: IPyramidValue[], private reduce: CallableFunction) {}
+    constructor (private func: CallableFunction, private inputs: IPyramidValue[]) {}
 
     getEstimateAt(location: ZXY) {
-        return pyramidEstimate(location, this.func, this.inputs, this.reduce);
+        return pyramidEstimate(location, this.func, this.inputs);
     }
 }
 
@@ -41,7 +44,6 @@ class RasterPyramidValue {
     }
 
     private getGridValueAt(location: ZXY) {
-        console.log("getting value at ", location, this.raster);
         // @TODO: account for z. Aggreagate through mean, I guess.
         // Also, should probably somehow use this.pyramid
         return this.raster[location.y - 1][location.x - 1];
@@ -80,7 +82,9 @@ class CachedEstimateStream implements IEstimateStream {
 }
 
 
-function pyramidEstimate(location: ZXY, func: CallableFunction, inputs: IPyramidValue[], reduceFunc: CallableFunction): IEstimateStream {
+function pyramidEstimate(location: ZXY, func: CallableFunction, inputs: IPyramidValue[]): IEstimateStream {
+
+    // Case 1: we're at bottom of pyramid. Get estimates from other pyramids and evaluate.
     if (pyramid.isBottom(location)) {
         const makeEstimateFunction = () => {
            const inputStreams = inputs.map(i => i.getEstimateAt(location));
@@ -91,29 +95,37 @@ function pyramidEstimate(location: ZXY, func: CallableFunction, inputs: IPyramid
            const estimate = func(estimates);
            return {degree, estimate};
          }
-         return new CachedEstimateStream(makeEstimateFunction)
+         return new CachedEstimateStream(makeEstimateFunction);
     }
+
+    // Case 2: we're high up in the pyramid. Pick *some* sub-pyramid and recurse. Remember previous evaluations' results for later to update degree and estimate.
     else {
+        const childLocations = pyramid.getChildren(location);
+
+        const childEstimateStreams: {[direction: string]: IEstimateStream} = {};
+        for (const [direction, childLocation] of Object.entries(childLocations)) {
+            const childEstimateStream = pyramidEstimate(childLocation, func, inputs);
+            childEstimateStreams[direction] = childEstimateStream;
+        }
+
+        const latestResults: {[key: string]: Estimate} = {'tl': {degree: 0, estimate: 0 }, 'tr': {degree: 0, estimate: 0 }, 'br': {degree: 0, estimate: 0 }, 'bl': {degree: 0, estimate: 0 }};
+
         const makeEstimateFunction = () => {
-            const childLocations = pyramid.getChildren(location);
 
-            const childEstimateStreams: {[direction: string]: IEstimateStream} = {};
-            for (const [direction, childLocation] of Object.entries(childLocations)) {
-                const childEstimateStream = pyramidEstimate(childLocation, func, inputs, reduceFunc);
-                childEstimateStreams[direction] = childEstimateStream;
+            const randomlyPickedDirection = ['tl', 'tr', 'br', 'bl'][Math.floor(Math.random() * 4)];
+
+            const result = childEstimateStreams[randomlyPickedDirection].next();
+            latestResults[randomlyPickedDirection] = result;
+
+            let degreeTotal = 0;
+            let estimateTotal = 0;
+            for (const [direction, latestEstimate] of Object.entries(latestResults)) {
+                const {degree, estimate} = latestEstimate;
+                estimateTotal += degree * estimate / 4;
+                degreeTotal   += degree / 4;
             }
 
-            const degrees = [];
-            const estimates = [];
-            for (const [direction, childLocation] of Object.entries(childLocations)) {
-                const {degree, estimate} = childEstimateStreams[direction].next();
-                degrees.push(degree);
-                estimates.push(estimate);
-            }
-
-            const degree = degrees.reduce((prev, curr) => prev * curr, 1);
-            const estimate = reduceFunc(estimates);
-            return {degree, estimate};
+            return {degree: degreeTotal, estimate: estimateTotal};
         };
 
         return new CachedEstimateStream(makeEstimateFunction);
@@ -124,8 +136,6 @@ function pyramidEstimate(location: ZXY, func: CallableFunction, inputs: IPyramid
 
 
 const pyramid = new Pyramid(3);
-
-const loc: ZXY = {z: 2, x: 1, y: 2};
 
 const intensityPyramid = new RasterPyramidValue(pyramid, [
     [0, 1, 1, 1],
@@ -141,22 +151,25 @@ const exposurePyramid = new RasterPyramidValue(pyramid, [
     [1, 2, 3, 1]
 ]);
 
-function updateExposure(intensity: number, exposure: number): number {
+function updateExposure([intensity, exposure]: number[]): number {
     return intensity * exposure;
 }
 
-function calcMean(estimates: number[]) {
-    const sum = estimates.reduce((last, curr) => last + curr, 0);
-    const count = estimates.length;
-    return sum / count;
-}
+const loc: ZXY = {z: 2, x: 1, y: 2};
 
-const updatedExposurePyramid = new PyramidValue(updateExposure, [intensityPyramid, exposurePyramid], calcMean);
+const updatedExposurePyramid = new PyramidValue(updateExposure, [intensityPyramid, exposurePyramid]);
 
 const estimateStream = updatedExposurePyramid.getEstimateAt(loc);
 
-// while (degree < cutoff) ...
-let {degree, estimate} = estimateStream.next();
-console.log({degree, estimate});
+const cutoff = 0.95;
+var degree = 0;
+var estimate = 0;
+while (degree < cutoff) {
+    var {degree, estimate} = estimateStream.next();
+    console.log({degree, estimate});
+}
+
+
+
 
 

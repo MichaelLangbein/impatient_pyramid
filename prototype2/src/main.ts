@@ -76,7 +76,7 @@ function createExposureRaster(rows: number, cols: number): Exposure[][] {
 
 
 const level = 6;
-const rows = Math.pow(4, level-1);
+const rows = Math.pow(2, level-1);
 const cols = rows;
 
 const pyramid = new Pyramid(level);
@@ -151,7 +151,7 @@ const updatedExposurePyramid = new PyramidValue(updateExposure as any, [intensit
 const estimateStream = updatedExposurePyramid.getEstimateAt(loc);
 
 let samples = 0;
-const cutoff = 0.99;
+const cutoff = 0.25;
 var degree = 0;
 while (degree < cutoff) {
     var {degree, estimate} = estimateStream.next();
@@ -159,3 +159,11 @@ while (degree < cutoff) {
     samples += 1;
 }
 console.log(`Done after ${samples} samples, out of ${rows * cols} pixels`);
+
+
+/**
+ * TODO's:
+ *  - only reduce at every `m`'th step
+ *  - do real fragility calculation
+ *  - example of how `updatedExposurePyramid` can itself be used as another input without evaluating it beforehand.
+ */

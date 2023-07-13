@@ -35,3 +35,9 @@ Hacked together really quickly so I wouldn't forget the basic idea.
 
 ## prototype 2
 Refined prototype in typescript, because with TS I don't have to keep all those return types in my head.
+ - A lot cleaner
+ - Inputs and outputs are `PyramidValue`s
+ - A PyramidValue-output can be used as an input to another without having been evaluated beforehand.
+
+## prototype 3
+Same thing, but multi-threaded ... will probably use elixir.

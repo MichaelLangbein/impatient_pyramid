@@ -81,6 +81,29 @@ class CachedEstimateStream implements IEstimateStream {
     }
 }
 
+function randomlyPickDirection(directionData: {'tl': Estimate, 'tr': Estimate, 'br': Estimate, 'bl': Estimate}) {
+    // Picks directions of lower degree with higher likelihood - and those with degree 1 with prob = 0
+
+    const probTlNonNorm = (1 - directionData['tl'].degree);
+    const probTrNonNorm = (1 - directionData['tr'].degree);
+    const probBrNonNorm = (1 - directionData['br'].degree);
+    const probBlNonNorm = (1 - directionData['bl'].degree);
+    const sum = probTlNonNorm + probTrNonNorm + probBrNonNorm + probBlNonNorm;
+    const probTl = probTlNonNorm / sum;
+    const probTr = probTrNonNorm / sum;
+    const probBr = probBrNonNorm / sum;
+    const probBl = probBlNonNorm / sum;
+
+
+    const randnum = Math.random();
+
+    if (randnum < probTl) return 'tl';
+    if (randnum < probTl + probTr) return 'tr';
+    if (randnum < probTl + probTr + probBr) return 'br';
+    if (randnum < probTl + probTr + probBr + probBl) return 'bl';
+
+    throw Error(`This line should be unreachable`);
+}
 
 function pyramidEstimate(location: ZXY, func: CallableFunction, inputs: IPyramidValue[]): IEstimateStream {
 
@@ -108,13 +131,11 @@ function pyramidEstimate(location: ZXY, func: CallableFunction, inputs: IPyramid
             childEstimateStreams[direction] = childEstimateStream;
         }
 
-        const latestResults: {[key: string]: Estimate} = {'tl': {degree: 0, estimate: 0 }, 'tr': {degree: 0, estimate: 0 }, 'br': {degree: 0, estimate: 0 }, 'bl': {degree: 0, estimate: 0 }};
+        const latestResults: {'tl': Estimate, 'tr': Estimate, 'br': Estimate, 'bl': Estimate} = {'tl': {degree: 0, estimate: 0 }, 'tr': {degree: 0, estimate: 0 }, 'br': {degree: 0, estimate: 0 }, 'bl': {degree: 0, estimate: 0 }};
 
         const makeEstimateFunction = () => {
 
-            // @TODO: pick directions with lower degree with higher likelihood - and those with degree 1 with prob = 0
-            const randomlyPickedDirection = ['tl', 'tr', 'br', 'bl'][Math.floor(Math.random() * 4)];
-
+            const randomlyPickedDirection = randomlyPickDirection(latestResults);
             const result = childEstimateStreams[randomlyPickedDirection].next();
             latestResults[randomlyPickedDirection] = result;
 
@@ -169,8 +190,4 @@ while (degree < cutoff) {
     var {degree, estimate} = estimateStream.next();
     console.log({degree, estimate});
 }
-
-
-
-
 

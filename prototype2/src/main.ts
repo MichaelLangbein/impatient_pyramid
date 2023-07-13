@@ -19,13 +19,13 @@ class Pyramid {
 
 
 interface IPyramidValue {
-    getValueAt(location: ZXY): number;
+    getEstimateAt(location: ZXY): IEstimateStream;
 }
 
 
 class PyramidValue implements IPyramidValue {
     // @TODO: reduce should be mean() by default
-    constuctor (private func: CallableFunction, private inputs: IPyramidValue[], private reduce: CallableFunction) {}
+    constructor (private func: CallableFunction, private inputs: IPyramidValue[], private reduce: CallableFunction) {}
 
     getEstimateAt(location: ZXY) {
         return pyramidEstimate(location, this.func, this.inputs, this.reduce);
@@ -41,9 +41,10 @@ class RasterPyramidValue {
     }
 
     private getGridValueAt(location: ZXY) {
+        console.log("getting value at ", location, this.raster);
         // @TODO: account for z. Aggreagate through mean, I guess.
         // Also, should probably somehow use this.pyramid
-        return this.raster[location.y][location.x];
+        return this.raster[location.y - 1][location.x - 1];
     }
 }
 
@@ -79,7 +80,7 @@ class CachedEstimateStream implements IEstimateStream {
 }
 
 
-function pyramidEstimate(location: ZXY, func: CallableFunction, inputs: PyramidValue[], reduceFunc: CallableFunction): IEstimateStream {
+function pyramidEstimate(location: ZXY, func: CallableFunction, inputs: IPyramidValue[], reduceFunc: CallableFunction): IEstimateStream {
     if (pyramid.isBottom(location)) {
         const makeEstimateFunction = () => {
            const inputStreams = inputs.map(i => i.getEstimateAt(location));
@@ -122,11 +123,9 @@ function pyramidEstimate(location: ZXY, func: CallableFunction, inputs: PyramidV
 
 
 
+const pyramid = new Pyramid(3);
 
-
-const pyramid = new Pyramid(8);
-
-const loc: ZXY = {z: 4, x: 52, y: 41};
+const loc: ZXY = {z: 2, x: 1, y: 2};
 
 const intensityPyramid = new RasterPyramidValue(pyramid, [
     [0, 1, 1, 1],
@@ -156,8 +155,8 @@ const updatedExposurePyramid = new PyramidValue(updateExposure, [intensityPyrami
 
 const estimateStream = updatedExposurePyramid.getEstimateAt(loc);
 
-let degree = 0;
-while (degree < 1) {
-    let {degree, estimate} = estimateStream.next();
-    console.log({degree, estimate});
-}
+// while (degree < cutoff) ...
+let {degree, estimate} = estimateStream.next();
+console.log({degree, estimate});
+
+

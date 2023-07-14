@@ -1,4 +1,4 @@
-import { ZXY, Pyramid, PyramidEstimate, RasterPyramidValue, DirectionEstimates } from './pyramids.generic';
+import { ZXY, Pyramid, DirectionEstimates, createRasterStream, pyramidEstimate as pyramidEstimate, createEstimateStream } from './pyramids.generic';
 
 
 
@@ -81,9 +81,9 @@ const cols = rows;
 
 const pyramid = new Pyramid(level);
 
-const intensityPyramid = new RasterPyramidValue(pyramid, createFloatRaster(rows, cols));
+const intensity$ = createRasterStream(createFloatRaster(rows, cols));
 
-const exposurePyramid = new RasterPyramidValue(pyramid, createExposureRaster(rows, cols));
+const exposure$ = createRasterStream(createExposureRaster(rows, cols));
 
 function fragility(intensity: number, state: DamageDegrees, material: 'wood' | 'brick' | 'steel'): DamageDegrees {
     const newDamages: DamageDegrees = {
@@ -146,15 +146,14 @@ function reduce(directionEstimates: DirectionEstimates<Exposure>): Exposure {
 
 const loc: ZXY = {z: 1, x: 1, y: 1};
 
-const updatedExposurePyramid = new PyramidEstimate(updateExposure as any, [intensityPyramid, exposurePyramid], reduce, pyramid);
-
-const estimateStream = updatedExposurePyramid.getEstimateAt(loc);
+const updatedExposure$ = createEstimateStream(updateExposure as any, [intensity$, exposure$], reduce, pyramid);
+const expoAt = updatedExposure$(loc);
 
 let samples = 0;
 const cutoff = 0.25;
 var degree = 0;
 while (degree < cutoff) {
-    var {degree, estimate} = estimateStream.next();
+    var {degree, estimate} = expoAt.next();
     console.log(degree);
     samples += 1;
 }

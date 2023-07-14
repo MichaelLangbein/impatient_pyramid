@@ -23,41 +23,10 @@ export class Pyramid {
 }
 
 
-interface IPyramidValue<T> {
-    getEstimateAt(location: ZXY): IEstimateStream<T>;
-}
 
 export type MapFunction<T> = (args: any[]) => T;
 export type ReduceFunction<T> = (arg: DirectionEstimates<T>) => T;
 
-export class PyramidEstimate<T> implements IPyramidValue<T> {
-    // @TODO: reduce should be mean() by default
-    constructor (
-        private func: MapFunction<T>,
-        private inputs: IPyramidValue<any>[],
-        private red: ReduceFunction<T>,
-        private pyramid: Pyramid
-    ) {}
-
-    getEstimateAt(location: ZXY) {
-        return pyramidEstimate<T>(location, this.func, this.inputs, this.red, this.pyramid);
-    }
-}
-
-export class RasterPyramidValue<T> {
-    constructor (private pyramid: Pyramid, private raster: T[][]) {}
-
-    getEstimateAt(location: ZXY) {
-        const value = this.getGridValueAt(location);
-        return new IdentityEstimateStream(value);
-    }
-
-    private getGridValueAt(location: ZXY) {
-        // @TODO: account for z. Aggregate through mean, I guess.
-        // Also, should probably somehow use this.pyramid
-        return this.raster[location.y - 1][location.x - 1];
-    }
-}
 
 
 export interface Estimate<T> {
@@ -90,6 +59,21 @@ class CachedEstimateStream<T> implements IEstimateStream<T> {
     }
 }
 
+
+export function createRasterStream<T>(raster: T[][]) {
+    return (location: ZXY) => {
+        return new IdentityEstimateStream(raster[location.y - 1 ][location.x - 1]);
+    }
+}
+
+export function createEstimateStream<T>(func: MapFunction<T>, inputs: ((location: ZXY) => IEstimateStream<any>)[], aggregationFunction: ReduceFunction<T>, pyramid: Pyramid) {
+    return (location: ZXY) => {
+        return pyramidEstimate<T>(location, func, inputs, aggregationFunction, pyramid)
+    }
+}
+
+
+
 export type DirectionEstimates<T> = {'tl': Estimate<T | undefined>, 'tr': Estimate<T | undefined>, 'br': Estimate<T | undefined>, 'bl': Estimate<T | undefined>};
 
 function randomlyPickDirection(directionData: DirectionEstimates<any>) {
@@ -116,13 +100,13 @@ function randomlyPickDirection(directionData: DirectionEstimates<any>) {
     throw Error(`This line should be unreachable`);
 }
 
-function pyramidEstimate<T>(location: ZXY, func: MapFunction<T>, inputs: IPyramidValue<any>[], aggregationFunction: ReduceFunction<T>, pyramid: Pyramid): IEstimateStream<T> {
+export function pyramidEstimate<T>(location: ZXY, func: MapFunction<T>, inputs: ((location: ZXY) => IEstimateStream<any>)[], aggregationFunction: ReduceFunction<T>, pyramid: Pyramid): IEstimateStream<T> {
 
     // Case 1: we're at bottom of pyramid. Get estimates from other pyramids and evaluate.
     // Inputs to `makeEstimateFunction` are `input: IPyramidValue[]` - we always consider all of them.
     if (pyramid.isBottom(location)) {
         const makeEstimateFunction = () => {
-           const inputStreams = inputs.map(i => i.getEstimateAt(location));
+           const inputStreams = inputs.map(i => i(location));
            const inputEstimates = inputStreams.map(s => s.next());
            const degrees = inputEstimates.map(i => i.degree);
            const estimates = inputEstimates.map(i => i.estimate);

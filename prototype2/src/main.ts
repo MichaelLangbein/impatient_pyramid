@@ -1,4 +1,4 @@
-import { ZXY, Pyramid, DirectionEstimates, createRasterStream, pyramidEstimate as pyramidEstimate, createEstimateStream } from './pyramids.generic';
+import { ZXY, Pyramid, DirectionEstimates, createRasterStream, createEstimateStream } from './pyramids.generic';
 
 
 
@@ -75,7 +75,7 @@ function createExposureRaster(rows: number, cols: number): Exposure[][] {
 
 
 
-const level = 6;
+const level = 5;
 const rows = Math.pow(2, level-1);
 const cols = rows;
 
@@ -147,17 +147,32 @@ function reduce(directionEstimates: DirectionEstimates<Exposure>): Exposure {
 const loc: ZXY = {z: 1, x: 1, y: 1};
 
 const updatedExposure$ = createEstimateStream(updateExposure as any, [intensity$, exposure$], reduce, pyramid);
-const expoAt = updatedExposure$(loc);
+const expoAtLoc = updatedExposure$(loc);
 
 let samples = 0;
-const cutoff = 0.25;
+const cutoff = 0.5;
 var degree = 0;
 while (degree < cutoff) {
-    var {degree, estimate} = expoAt.next();
+    var {degree, estimate} = expoAtLoc.next();
     console.log(degree);
     samples += 1;
 }
 console.log(`Done after ${samples} samples, out of ${rows * cols} pixels`);
+
+
+const loc2: ZXY = {z: 1, x: 1, y: 1};
+
+const expoAtLoc2 = updatedExposure$(loc2);
+
+samples = 0;
+var degree = 0;
+while (degree < cutoff) {
+    var {degree, estimate} = expoAtLoc2.next();
+    console.log(degree);
+    samples += 1;
+}
+console.log(`Done after ${samples} samples, out of ${rows * cols} pixels`);
+
 
 
 /**

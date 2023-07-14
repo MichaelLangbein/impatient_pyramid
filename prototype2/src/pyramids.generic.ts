@@ -46,16 +46,38 @@ class IdentityEstimateStream<T> implements IEstimateStream<T> {
     }
 }
 
+class Cache {
+    private data = new Map<string, Estimate<any>>();
+
+    public get<T>(location: ZXY, func: () => Estimate<T>): Estimate<T> | undefined {
+        const key = this.makeKey(location, func);
+        const hit = this.data.get(key);
+        if (hit) console.log(`Cache hit at level ${location.z}`);
+        return hit;
+    }
+
+    public set<T>(location: ZXY, func: () => Estimate<T>, data: Estimate<T>) {
+        const key = this.makeKey(location, func);
+        this.data.set(key, data);
+    }
+
+    private makeKey<T>(location: ZXY, func: () => Estimate<T>): string {
+        const key = `${location.z}/${location.x}/${location.y}/` + func;
+        return key;
+    }
+}
+
+const cache = new Cache();
+
 class CachedEstimateStream<T> implements IEstimateStream<T> {
     
-    private lastEstimate: Estimate<T> = {degree: 0, estimate: 0 as any };
-
-    constructor(private makeEstimateFunction: () => Estimate<T>) {}
+    constructor(private makeEstimateFunction: () => Estimate<T>, private location: ZXY) {}
 
     next(): Estimate<T> {
-        if (this.lastEstimate.degree >= 1) return this.lastEstimate;
+        const cacheHit = cache.get(this.location, this.makeEstimateFunction);
+        if (cacheHit) return cacheHit;
         const newEstimate = this.makeEstimateFunction();
-        this.lastEstimate = newEstimate;
+        if (newEstimate.degree >= 1.0) cache.set(this.location, this.makeEstimateFunction, newEstimate);
         return newEstimate;
     }
 }
@@ -101,7 +123,7 @@ function randomlyPickDirection(directionData: DirectionEstimates<any>) {
     throw Error(`This line should be unreachable`);
 }
 
-export function pyramidEstimate<T>(location: ZXY, func: MapFunction<T>, inputs: LocationToEstimateStream<any>[], aggregationFunction: ReduceFunction<T>, pyramid: Pyramid): IEstimateStream<T> {
+function pyramidEstimate<T>(location: ZXY, func: MapFunction<T>, inputs: LocationToEstimateStream<any>[], aggregationFunction: ReduceFunction<T>, pyramid: Pyramid): IEstimateStream<T> {
 
     // Case 1: we're at bottom of pyramid. Get estimates from other pyramids and evaluate.
     // Inputs to `makeEstimateFunction` are `input: IPyramidValue[]` - we always consider all of them.
@@ -115,7 +137,7 @@ export function pyramidEstimate<T>(location: ZXY, func: MapFunction<T>, inputs: 
            const estimate = func(estimates);
            return {degree, estimate};
          }
-         return new CachedEstimateStream(makeEstimateFunction);
+         return new CachedEstimateStream(makeEstimateFunction, location);
     }
 
     // Case 2: we're high up in the pyramid. Pick *some* sub-pyramid and recurse. Remember previous evaluations' results for later to update degree and estimate.
@@ -153,7 +175,7 @@ export function pyramidEstimate<T>(location: ZXY, func: MapFunction<T>, inputs: 
             return {degree: degreeTotal, estimate: estimateTotal};
         };
 
-        return new CachedEstimateStream<T>(makeEstimateFunction);
+        return new CachedEstimateStream<T>(makeEstimateFunction, location);
     }
 }
 

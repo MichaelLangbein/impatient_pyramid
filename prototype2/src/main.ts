@@ -1,4 +1,4 @@
-import { ZXY, Pyramid, PyramidValue, RasterPyramidValue, DirectionEstimates } from './pyramids.generic';
+import { ZXY, Pyramid, PyramidEstimate, RasterPyramidValue, DirectionEstimates } from './pyramids.generic';
 
 
 
@@ -146,7 +146,7 @@ function reduce(directionEstimates: DirectionEstimates<Exposure>): Exposure {
 
 const loc: ZXY = {z: 1, x: 1, y: 1};
 
-const updatedExposurePyramid = new PyramidValue(updateExposure as any, [intensityPyramid, exposurePyramid], reduce, pyramid);
+const updatedExposurePyramid = new PyramidEstimate(updateExposure as any, [intensityPyramid, exposurePyramid], reduce, pyramid);
 
 const estimateStream = updatedExposurePyramid.getEstimateAt(loc);
 

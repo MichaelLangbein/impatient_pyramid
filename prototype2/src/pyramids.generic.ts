@@ -30,7 +30,7 @@ interface IPyramidValue<T> {
 export type MapFunction<T> = (args: any[]) => T;
 export type ReduceFunction<T> = (arg: DirectionEstimates<T>) => T;
 
-export class PyramidValue<T> implements IPyramidValue<T> {
+export class PyramidEstimate<T> implements IPyramidValue<T> {
     // @TODO: reduce should be mean() by default
     constructor (
         private func: MapFunction<T>,
@@ -119,6 +119,7 @@ function randomlyPickDirection(directionData: DirectionEstimates<any>) {
 function pyramidEstimate<T>(location: ZXY, func: MapFunction<T>, inputs: IPyramidValue<any>[], aggregationFunction: ReduceFunction<T>, pyramid: Pyramid): IEstimateStream<T> {
 
     // Case 1: we're at bottom of pyramid. Get estimates from other pyramids and evaluate.
+    // Inputs to `makeEstimateFunction` are `input: IPyramidValue[]` - we always consider all of them.
     if (pyramid.isBottom(location)) {
         const makeEstimateFunction = () => {
            const inputStreams = inputs.map(i => i.getEstimateAt(location));
@@ -133,6 +134,8 @@ function pyramidEstimate<T>(location: ZXY, func: MapFunction<T>, inputs: IPyrami
     }
 
     // Case 2: we're high up in the pyramid. Pick *some* sub-pyramid and recurse. Remember previous evaluations' results for later to update degree and estimate.
+    // Inputs to `makeEstimateFunction` are `childEstimateStreams` - we always consider only one of them at random.
+    // We also maintain a cache
     else {
         const childLocations = pyramid.getChildren(location);
 

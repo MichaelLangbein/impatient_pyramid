@@ -64,7 +64,7 @@ export interface IPyramid<T> {
 
 export class RasterPyramid<T> implements IPyramid<T> {
     
-    constructor(private raster: T[][]) {}
+    constructor(private grid: Grid, private raster: T[][]) {}
 
     getEstimateStreamAt(location: ZXY) {
         return new IdentityEstimateStream(this.raster[location.y - 1][location.x - 1]);

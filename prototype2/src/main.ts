@@ -9,21 +9,21 @@ const cols = rows;
 
 const grid = new Grid(level);
 
-const intensity$ = new RasterPyramid(createFloatRaster(rows, cols));
+const intensity$ = new RasterPyramid(grid, createFloatRaster(rows, cols));
 
-const exposure$ = new RasterPyramid(createExposureRaster(rows, cols));
+const exposure$ = new RasterPyramid(grid, createExposureRaster(rows, cols));
+
+const updatedExposure$ = new Pyramid(grid, updateExposure as any, [intensity$, exposure$], reduce);
+
+const updatedExposureAt$ = updatedExposure$.getEstimateStreamAt({z: 1, x: 1, y: 1});
 
 
-const loc: ZXY = {z: 1, x: 1, y: 1};
-
-const updatedExposure = new Pyramid(grid, updateExposure as any, [intensity$, exposure$], reduce);
-const updatedExposure$ = updatedExposure.getEstimateStreamAt(loc);
 
 let samples = 0;
 const cutoff = 0.5;
 var degree = 0;
 while (degree < cutoff) {
-    var {degree, estimate} = updatedExposure$.next();
+    var {degree, estimate} = updatedExposureAt$.next();
     console.log(degree);
     samples += 1;
 }
@@ -32,7 +32,7 @@ console.log(`Done after ${samples} samples, out of ${rows * cols} pixels`);
 
 const loc2: ZXY = {z: 1, x: 1, y: 1};
 
-const updatedExposure2$ = updatedExposure.getEstimateStreamAt(loc2);
+const updatedExposure2$ = updatedExposure$.getEstimateStreamAt(loc2);
 
 samples = 0;
 var degree = 0;

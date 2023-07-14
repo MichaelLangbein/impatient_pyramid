@@ -26,9 +26,9 @@ const nrPixels = grid.countBottomUnder({z: 1, x: 1, y: 1});
 const rows = Math.round(Math.sqrt(nrPixels));
 const cols = rows;
 
-const intensity$ = new RasterPyramid(createFloatRaster(rows, cols));
+const intensity$ = new RasterPyramid(grid, createFloatRaster(rows, cols));
 
-const exposure$ = new RasterPyramid(createExposureRaster(rows, cols));
+const exposure$ = new RasterPyramid(grid, createExposureRaster(rows, cols));
 
 const updatedExposure$ = new Pyramid(grid, updateExposure as any, [intensity$, exposure$], reduce);
 

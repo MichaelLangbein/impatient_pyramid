@@ -36,10 +36,12 @@ Hacked together really quickly so I wouldn't forget the basic idea.
 ## prototype 2
 Refined prototype in typescript, because with TS I don't have to keep all those return types in my head.
  - A lot cleaner
- - Inputs and outputs are `EstimateStream`s
- - A EstimateStream can be used as an input to another without having been evaluated beforehand.
+ - Inputs are and calculations are `Pyramid`s
+ - Outputs are `EstimateStream`s for a given location
+ - A Pyramid can be used as an input to another without having been evaluated beforehand.
 
 API:
+- `Pyramid`: manages streams and their interdependencies
 - `EstimateStream`: The results of the calculation, increasingly more precise.
 
 ```ts

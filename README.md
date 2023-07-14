@@ -52,5 +52,13 @@ while (degree < threshold) {
 }
 ```
 
+### TODO's
+- Simplify
+  - We probably don't need the `PyramidEstimate` - all it does is wrapping around `pyramidEstimate` and calling it once a `location` is given.
+- When a user wants to get data from another z-level, we don't want to throw away the old data
+  - Maybe maintain a global cache of already calculated results? Maybe register whole streams in global cache?
+
+
+
 ## prototype 3
 Same thing, but multi-threaded ... will probably use elixir.

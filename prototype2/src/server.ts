@@ -1,5 +1,5 @@
 import { createExposureRaster, createFloatRaster, reduce, updateExposure } from "./busineslogic";
-import { IEstimateStream, LocationToEstimateStream, Grid, createEstimateStream, createRasterStream } from "./pyramids.generic"
+import { IEstimateStream, Grid, Pyramid, IPyramid, RasterPyramid } from "./pyramids.generic"
 
 interface Bbox {
     latMin: number,
@@ -8,7 +8,7 @@ interface Bbox {
     lonMax: number
 }
 
-class GeoPyramid extends Grid {
+class GeoGrid extends Grid {
     constructor(nrLevels: number, private bbox: Bbox) {
         super(nrLevels);
     }
@@ -18,19 +18,40 @@ class GeoPyramid extends Grid {
     }
 }
 
-
 const worldBbox = {latMin: -90, lonMin: -180, latMax: 90, lonMax: 180};
 
-const pyramid = new GeoPyramid(12, worldBbox);
+const grid = new GeoGrid(12, worldBbox);
+
+const nrPixels = grid.countBottomUnder({z: 1, x: 1, y: 1});
+const rows = Math.round(Math.sqrt(nrPixels));
+const cols = rows;
+
+const intensity$ = new RasterPyramid(createFloatRaster(rows, cols));
+
+const exposure$ = new RasterPyramid(createExposureRaster(rows, cols));
+
+const updatedExposure$ = new Pyramid(grid, updateExposure as any, [intensity$, exposure$], reduce);
 
 
+export type ProductName = "intensity" | "exposure" | "updatedExposure";
+
+function getPyramid(productName: ProductName): IPyramid<any> {
+    switch (productName) {
+        case "exposure":
+            return exposure$;
+        case "intensity":
+            return intensity$;
+        case "updatedExposure":
+            return updatedExposure$;
+    }
+}
 
 
 function getDataForBbox(ws: WebSocket, productName: ProductName, bbox: Bbox) {
-    const locations = pyramid.getTilesInside(bbox);
-    const streamFactory = getStreamFactory(productName);
+    const locations = grid.getTilesInside(bbox);
+    const pyramid = getPyramid(productName);
     const streams = locations.map(l => {
-        return { location: l, stream: streamFactory(l) };
+        return { location: l, stream: pyramid.getEstimateStreamAt(l) };
     });
 
     // function loop() {
@@ -44,25 +65,3 @@ function getDataForBbox(ws: WebSocket, productName: ProductName, bbox: Bbox) {
 
 }
 
-export type ProductName = "intensity" | "exposure" | "updatedExposure";
-
-function getStreamFactory(productName: ProductName): LocationToEstimateStream<any> {
-    switch (productName) {
-        case "exposure":
-            return exposure$;
-        case "intensity":
-            return intensity$;
-        case "updatedExposure":
-            return updatedExposure$;
-    }
-}
-
-const nrPixels = pyramid.countBottomUnder({z: 1, x: 1, y: 1});
-const rows = Math.round(Math.sqrt(nrPixels));
-const cols = rows;
-
-const intensity$ = createRasterStream(createFloatRaster(rows, cols));
-
-const exposure$ = createRasterStream(createExposureRaster(rows, cols));
-
-const updatedExposure$ = createEstimateStream(updateExposure as any, [intensity$, exposure$], reduce, pyramid);

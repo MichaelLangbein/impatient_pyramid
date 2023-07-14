@@ -43,11 +43,11 @@ API:
 - `EstimateStream`: The results of the calculation, increasingly more precise.
 
 ```ts
-const estimator = createEstimateStream(perPixelFunction, args, reduceFunction, pyramid);
-const estimateStream = estimator(location);
+const pyramid = new Pyramid(grid, perPixelFunction, args, reduceFunction);
+const estimateStream$ = pyramid.getStreamAt(location);
 const threshold = 0.1;
 while (degree < threshold) {
-    const {degree, estimate} = estimateStream.next();
+    const {degree, estimate} = estimateStream$.next();
 }
 ```
 
@@ -56,3 +56,7 @@ while (degree < threshold) {
 
 ## prototype 3
 Same thing, but multi-threaded ... will probably use elixir.
+
+Conversion:
+     - every stream a process
+     - every pyramid a process-manager for the stream processes

@@ -15,6 +15,11 @@ export class Pyramid {
         const tr = {...tl, x: tl.x + 1};
         return {tl, tr, br, bl};
     }
+
+    public countBottomUnder(location: ZXY) {
+        const deltaZ = this.nrLevels - location.z;
+        return Math.pow(4, deltaZ);
+    }
 }
 
 

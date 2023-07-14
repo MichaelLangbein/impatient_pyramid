@@ -27,6 +27,7 @@ export class Pyramid {
 export type MapFunction<T> = (args: any[]) => T;
 export type ReduceFunction<T> = (arg: DirectionEstimates<T>) => T;
 
+export type LocationToEstimateStream<T> = (location: ZXY) => IEstimateStream<T>;
 
 
 export interface Estimate<T> {
@@ -60,13 +61,13 @@ class CachedEstimateStream<T> implements IEstimateStream<T> {
 }
 
 
-export function createRasterStream<T>(raster: T[][]) {
+export function createRasterStream<T>(raster: T[][]): LocationToEstimateStream<T> {
     return (location: ZXY) => {
         return new IdentityEstimateStream(raster[location.y - 1 ][location.x - 1]);
     }
 }
 
-export function createEstimateStream<T>(func: MapFunction<T>, inputs: ((location: ZXY) => IEstimateStream<any>)[], aggregationFunction: ReduceFunction<T>, pyramid: Pyramid) {
+export function createEstimateStream<T>(func: MapFunction<T>, inputs: LocationToEstimateStream<any>[], aggregationFunction: ReduceFunction<T>, pyramid: Pyramid): LocationToEstimateStream<T> {
     return (location: ZXY) => {
         return pyramidEstimate<T>(location, func, inputs, aggregationFunction, pyramid)
     }
@@ -100,7 +101,7 @@ function randomlyPickDirection(directionData: DirectionEstimates<any>) {
     throw Error(`This line should be unreachable`);
 }
 
-export function pyramidEstimate<T>(location: ZXY, func: MapFunction<T>, inputs: ((location: ZXY) => IEstimateStream<any>)[], aggregationFunction: ReduceFunction<T>, pyramid: Pyramid): IEstimateStream<T> {
+export function pyramidEstimate<T>(location: ZXY, func: MapFunction<T>, inputs: LocationToEstimateStream<any>[], aggregationFunction: ReduceFunction<T>, pyramid: Pyramid): IEstimateStream<T> {
 
     // Case 1: we're at bottom of pyramid. Get estimates from other pyramids and evaluate.
     // Inputs to `makeEstimateFunction` are `input: IPyramidValue[]` - we always consider all of them.

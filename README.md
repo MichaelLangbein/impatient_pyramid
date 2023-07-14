@@ -51,16 +51,6 @@ while (degree < threshold) {
 }
 ```
 
-### TODO's
-- Simplify
-  - We probably don't need the `PyramidEstimate` - all it does is wrapping around `pyramidEstimate` and calling it once a `location` is given.
-    - Would save us a lot of types
-    - Instead of `RasterValuePyramid` provide `function rasterStream(location)`
-    - Instead of `PyramidEstimate` just use `pyramidEstimate`
-    - `pyramidEstimate`'s inputs would no longer be `IPyramidValue[].getEstimateAt(location)` but just `IEstimateStream[]` directly
- - CachedStreams already have a cache ... should PyramidValues or CachedStreams be the ones in the global cache?
-- When a user wants to get data from another z-level, we don't want to throw away the old data
-  - Maybe maintain a global cache of already calculated results? Maybe register whole streams in global cache? Also, that cache can replace the cache for the reducer-stream-function.
 
 
 

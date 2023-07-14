@@ -35,7 +35,7 @@ export interface Estimate<T> {
     estimate: T
 }
 
-interface IEstimateStream<T> {
+export interface IEstimateStream<T> {
     next(): Estimate<T>;
 }
 

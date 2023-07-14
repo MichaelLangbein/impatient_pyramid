@@ -36,16 +36,15 @@ Hacked together really quickly so I wouldn't forget the basic idea.
 ## prototype 2
 Refined prototype in typescript, because with TS I don't have to keep all those return types in my head.
  - A lot cleaner
- - Inputs and outputs are `PyramidEstimate`s
- - A PyramidEstimate-output can be used as an input to another without having been evaluated beforehand.
+ - Inputs and outputs are `EstimateStream`s
+ - A EstimateStream can be used as an input to another without having been evaluated beforehand.
 
 API:
-- `PyramidEstimate`: A container that applies a calculation to a pyramid.
 - `EstimateStream`: The results of the calculation, increasingly more precise.
 
 ```ts
-const estimator = new PyramidEstimate(perPixelFunction, args, reduceFunction);
-const estimateStream = estimator.getEstimateAt(location);
+const estimator = createEstimateStream(perPixelFunction, args, reduceFunction, pyramid);
+const estimateStream = estimator(location);
 const threshold = 0.1;
 while (degree < threshold) {
     const {degree, estimate} = estimateStream.next();

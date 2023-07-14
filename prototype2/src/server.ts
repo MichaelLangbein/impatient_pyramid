@@ -1,5 +1,5 @@
 import { createExposureRaster, createFloatRaster, reduce, updateExposure } from "./busineslogic";
-import { IEstimateStream, LocationToEstimateStream, Pyramid, createEstimateStream, createRasterStream } from "./pyramids.generic"
+import { IEstimateStream, LocationToEstimateStream, Grid, createEstimateStream, createRasterStream } from "./pyramids.generic"
 
 interface Bbox {
     latMin: number,
@@ -8,7 +8,7 @@ interface Bbox {
     lonMax: number
 }
 
-class GeoPyramid extends Pyramid {
+class GeoPyramid extends Grid {
     constructor(nrLevels: number, private bbox: Bbox) {
         super(nrLevels);
     }

@@ -96,7 +96,7 @@ export function updateExposure([intensity, exposure]: [number, Exposure]): Expos
     return newExposure;
 }
 
-export function reduce(directionEstimates: DirectionEstimates<Exposure>): Exposure {
+export function aggregateExposure(directionEstimates: DirectionEstimates<Exposure>): Exposure {
     const results = Object.values(directionEstimates);
     const estimates = results.map(r => r.estimate).filter(e => e !== undefined);
     const aggregatedExposure: Exposure = {

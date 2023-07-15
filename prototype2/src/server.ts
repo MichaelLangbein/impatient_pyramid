@@ -1,5 +1,5 @@
-import { createExposureRaster, createFloatRaster, reduce, updateExposure } from "./busineslogic";
-import { IEstimateStream, Grid, Pyramid, IPyramid, RasterPyramid } from "./pyramids.generic"
+import { createExposureRaster, createFloatRaster, aggregateExposure, updateExposure } from "./businessLogic";
+import { Grid, Pyramid, IPyramid, RasterPyramid, meanFunction, ZXY } from "./pyramids.generic"
 
 interface Bbox {
     latMin: number,
@@ -13,8 +13,18 @@ class GeoGrid extends Grid {
         super(nrLevels);
     }
 
-    public getTilesInside(bbox: Bbox): ZXY[] {
-        
+    public getTilesInside(bbox: Bbox, z?: number): ZXY[] {
+        if (!z) { 
+            // if not given, pick z such that you return x by 8 or 8 by x tiles
+            return this.getTilesInside(bbox, z);
+        }
+        // @TODO
+        return [
+            {z: 2, x: 1, y: 1},
+            {z: 2, x: 1, y: 2},
+            {z: 2, x: 2, y: 1},
+            {z: 2, x: 2, y: 2}
+        ];
     }
 }
 
@@ -26,11 +36,11 @@ const nrPixels = grid.countBottomUnder({z: 1, x: 1, y: 1});
 const rows = Math.round(Math.sqrt(nrPixels));
 const cols = rows;
 
-const intensity$ = new RasterPyramid(grid, createFloatRaster(rows, cols));
+const intensity$ = new RasterPyramid(grid, createFloatRaster(rows, cols), meanFunction);
 
-const exposure$ = new RasterPyramid(grid, createExposureRaster(rows, cols));
+const exposure$ = new RasterPyramid(grid, createExposureRaster(rows, cols), aggregateExposure);
 
-const updatedExposure$ = new Pyramid(grid, updateExposure as any, [intensity$, exposure$], reduce);
+const updatedExposure$ = new Pyramid(grid, updateExposure as any, [intensity$, exposure$], aggregateExposure);
 
 
 export type ProductName = "intensity" | "exposure" | "updatedExposure";

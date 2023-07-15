@@ -24,8 +24,8 @@ export class Grid {
 
 
 
-export type MapFunction<T> = (args: any[]) => T;
-export type ReduceFunction<T> = (arg: DirectionEstimates<T>) => T;
+export type MapFunction<T> = (args: any[], loc: ZXY) => T;
+export type ReduceFunction<T> = (arg: DirectionEstimates<T>, loc: ZXY) => T;
 
 
 export interface Estimate<T> {
@@ -62,17 +62,8 @@ export interface IPyramid<T> {
     getEstimateStreamAt(location: ZXY): IEstimateStream<T>
 }
 
-export class RasterPyramid<T> implements IPyramid<T> {
-    
-    constructor(private grid: Grid, private raster: T[][]) {}
-
-    getEstimateStreamAt(location: ZXY) {
-        return new IdentityEstimateStream(this.raster[location.y - 1][location.x - 1]);
-    }
-}
-
 export class Pyramid<T> implements IPyramid<T> {
-    private streams = new Map<ZXY, IEstimateStream<T>>()
+    private streams = new Map<string, IEstimateStream<T>>()
 
     constructor(
         private grid: Grid,
@@ -82,10 +73,11 @@ export class Pyramid<T> implements IPyramid<T> {
     ) {}
 
     getEstimateStreamAt(location: ZXY) {
-        const cacheHit = this.streams.get(location);
+        const key = `${location.z}/${location.x}/${location.y}`;
+        const cacheHit = this.streams.get(key);
         if (cacheHit) return cacheHit;
         const stream = this.pyramidEstimate(location);
-        this.streams.set(location, stream);
+        this.streams.set(key, stream);
         return stream;
     }
 
@@ -127,7 +119,7 @@ export class Pyramid<T> implements IPyramid<T> {
                 const {degree, estimate} = latestEstimate;
                 degreeTotal   += degree / 4;
             }
-            let estimateTotal = this.aggregationFunction(latestResults);
+            let estimateTotal = this.aggregationFunction(latestResults, location);
 
             return {degree: degreeTotal, estimate: estimateTotal};
         };
@@ -142,11 +134,40 @@ export class Pyramid<T> implements IPyramid<T> {
             const degrees = inputEstimates.map(i => i.degree);
             const estimates = inputEstimates.map(i => i.estimate);
             const degree = degrees.reduce((last, curr) => last * curr, 1);
-            const estimate = this.func(estimates);
+            const estimate = this.func(estimates, location);
             return {degree, estimate};
         }
         return new FiniteEstimateStream(makeEstimateFunction, location);
     }
+}
+
+
+export class RasterPyramid<T> extends Pyramid<T> {
+    
+    constructor(grid: Grid, private raster: T[][], aggrFunc: ReduceFunction<T>) {
+
+        const mapFunc = (args: any[], location: ZXY) => {
+            return this.raster[location.y - 1][location.x - 1];
+        }
+
+        super(grid, mapFunc, [], aggrFunc);
+    }
+
+    getEstimateStreamAt(location: ZXY) {
+        return super.getEstimateStreamAt(location);
+    }
+
+}
+
+export const meanFunction: ReduceFunction<number> = (args: DirectionEstimates<number>, loc: ZXY) => {
+    const estimates = Object.entries(args).map(e => e[1]);
+    const len = estimates.length;
+    const validEstimates = estimates.filter(e => e.degree >= 0 && e.estimate !== undefined);
+    let mean = 0;
+    for (const {degree, estimate} of validEstimates) {
+        mean += degree * estimate! / len;
+    }
+    return mean;
 }
 
 

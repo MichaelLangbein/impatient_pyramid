@@ -1,5 +1,5 @@
-import { createExposureRaster, createFloatRaster, reduce, updateExposure } from './busineslogic';
-import { ZXY, Grid, RasterPyramid, Pyramid } from './pyramids.generic';
+import { createExposureRaster, createFloatRaster, aggregateExposure, updateExposure } from './businessLogic';
+import { ZXY, Grid, RasterPyramid, Pyramid, meanFunction } from './pyramids.generic';
 
 
 
@@ -9,11 +9,11 @@ const cols = rows;
 
 const grid = new Grid(level);
 
-const intensity$ = new RasterPyramid(grid, createFloatRaster(rows, cols));
+const intensity$ = new RasterPyramid(grid, createFloatRaster(rows, cols), meanFunction);
 
-const exposure$ = new RasterPyramid(grid, createExposureRaster(rows, cols));
+const exposure$ = new RasterPyramid(grid, createExposureRaster(rows, cols), aggregateExposure);
 
-const updatedExposure$ = new Pyramid(grid, updateExposure as any, [intensity$, exposure$], reduce);
+const updatedExposure$ = new Pyramid(grid, updateExposure as any, [intensity$, exposure$], aggregateExposure);
 
 const updatedExposureAt$ = updatedExposure$.getEstimateStreamAt({z: 1, x: 1, y: 1});
 

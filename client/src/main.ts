@@ -93,10 +93,10 @@ async function loop() {
   const response = await fetch(`${config.server}/${state.layer}?bbox=${bboxString}`);
   const parsedResponse = await response.json();
   
-  const features = parseTilesIntoFeatures(state, parsedResponse);
+  const geoJson = parseTilesIntoFeatures(parsedResponse);
   
   const newSource = new VectorSource({
-    features: new GeoJSON().readFeatures(features)
+    features: new GeoJSON().readFeatures(geoJson)
   });
   if (state.layer === "exposure") exposureLayer.setSource(newSource);
   if (state.layer === "intensity") intensityLayer.setSource(newSource);
@@ -110,15 +110,36 @@ loop();
 interface ZXY {
   x: number, y: number, z: number
 }
+interface Bbox {
+  latMin: number, lonMin: number, latMax: number, lonMax: number
+}
 interface Estimate {
   degree: number, estimate: any
 }
 interface LocatedEstimate {
-  location: ZXY, estimate: Estimate
+  location: ZXY, estimate: Estimate, bbox: Bbox
 }
 
-function parseTilesIntoFeatures(state: State, inputs: LocatedEstimate[]): Feature[] {
-
+function parseTilesIntoFeatures(inputs: LocatedEstimate[]): Feature[] {
+  const collection: any = {type: "FeatureCollection", features: []};
+  for (const input of inputs) {
+    const feature = {
+      type: "Feature",
+      properties: input.estimate,
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [input.bbox.lonMin, input.bbox.latMin],
+          [input.bbox.lonMax, input.bbox.latMin],
+          [input.bbox.lonMax, input.bbox.latMax],
+          [input.bbox.lonMin, input.bbox.latMax],
+          [input.bbox.lonMin, input.bbox.latMin]
+        ]]
+      }
+    };
+    collection.features.push(feature);
+  }
+  return collection;
 }
 
 /**********************************************
@@ -126,7 +147,7 @@ function parseTilesIntoFeatures(state: State, inputs: LocatedEstimate[]): Featur
  *********************************************/
 
 
-map.on("click", (evt: MapBrowserEvent) => handleMapClick(evt));
+map.on("click", (evt: MapBrowserEvent<any>) => handleMapClick(evt));
 exposureDiv.addEventListener("click", () => handleActivation("exposure"));
 intensityDiv.addEventListener("click", () => handleActivation("intensity"));
 updatedExposureDiv.addEventListener("click", () => handleActivation("updatedExposure"));
@@ -152,19 +173,19 @@ function handleActivation(layer: State["layer"]) {
 
 function updateMap(state: State) {
   if (state.layer === "exposure") {
-    exposureLayer.visible(true);
-    intensityLayer.visible(false);
-    updatedExposureLayer.visible(false);
+    exposureLayer.setVisible(true);
+    intensityLayer.setVisible(false);
+    updatedExposureLayer.setVisible(false);
   }
   else if (state.layer === "intensity") {
-    exposureLayer.visible(false);
-    intensityLayer.visible(true);
-    updatedExposureLayer.visible(false);
+    exposureLayer.setVisible(false);
+    intensityLayer.setVisible(true);
+    updatedExposureLayer.setVisible(false);
   }
   else if (state.layer === "updatedExposure") {
-    exposureLayer.visible(false);
-    intensityLayer.visible(false);
-    updatedExposureLayer.visible(true);
+    exposureLayer.setVisible(false);
+    intensityLayer.setVisible(false);
+    updatedExposureLayer.setVisible(true);
   }
 }
 

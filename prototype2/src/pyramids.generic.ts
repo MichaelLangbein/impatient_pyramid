@@ -20,6 +20,18 @@ export class Grid {
         const deltaZ = this.nrLevels - location.z;
         return Math.pow(4, deltaZ);
     }
+
+    public tilesAtLevel(z: number) {
+        return Math.pow(4, z-1);
+    }
+
+    public rowsColsAtLevel(z: number) {
+        const tiles = this.tilesAtLevel(z);
+        const rows = Math.round(Math.sqrt(tiles));
+        const cols = rows;
+        return {rows, cols};
+    }
+
 }
 
 

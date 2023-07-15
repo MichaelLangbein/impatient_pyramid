@@ -18,7 +18,7 @@ class GeoGrid extends Grid {
     public getTilesInside(bbox: Bbox, z?: number): ZXY[] {
         if (!z) { 
             // @TODO: if not given, pick z such that you return x by 8 or 8 by x tiles
-            z = 2;
+            z = 4;
             return this.getTilesInside(bbox, z);
         }
         // @TODO
@@ -30,8 +30,24 @@ class GeoGrid extends Grid {
         ];
     }
 
+    
     public getBboxFor(location: ZXY): Bbox {
-        
+        const {rows, cols} = this.rowsColsAtLevel(location.z);
+
+        const widthTotal = this.bbox.lonMax - this.bbox.lonMin;
+        const width = widthTotal / cols;
+        const startW = this.bbox.lonMin + location.x * width;
+
+        const heightTotal = this.bbox.latMax - this.bbox.latMin;
+        const height = heightTotal / rows;
+        const startH = this.bbox.latMin + location.x * height;
+
+        return {
+            lonMin: startW,
+            lonMax: startW + width,
+            latMin: startH,
+            latMax: startH + height
+        };
     }
 }
 

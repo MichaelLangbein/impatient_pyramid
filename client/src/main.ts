@@ -1,6 +1,6 @@
 import './style.css';
 import 'ol/ol.css';
-import { Map, MapBrowserEvent, Overlay, View } from 'ol';
+import { Feature, Map, MapBrowserEvent, Overlay, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
 import VectorLayer from 'ol/layer/Vector';
@@ -66,8 +66,8 @@ const updatedExposureLayer = new VectorLayer({
 
 
 const view = new View({
-  center: [11.3, 48.08],
-  zoom: 14,
+  center: [0, 0],
+  zoom: 1,
   projection: 'EPSG:4326'
 });
 
@@ -76,20 +76,50 @@ const popupOverlay = new Overlay({
 });
 
 const map = new Map({
-  view, layers: [baseLayer, exposureLayer, intensityLayer, updatedExposureLayer], overlays: [popupOverlay], target: appDiv
+  view, layers: [
+    // baseLayer,
+    exposureLayer,
+    intensityLayer,
+    updatedExposureLayer
+  ],
+    overlays: [popupOverlay], target: appDiv
 });
 
 
 async function loop() {
-  const bbox = view
-  const bboxString = `${},${},${},${}`;
+  const [lonMin, latMin, lonMax, latMax] = view.calculateExtent(map.getSize());
+  const bboxString = `${lonMin},${latMin},${lonMax},${latMax}`;
+  
   const response = await fetch(`${config.server}/${state.layer}?bbox=${bboxString}`);
-  const parsedResponse = response.json();
-  console.log(parsedResponse);
+  const parsedResponse = await response.json();
+  
+  const features = parseTilesIntoFeatures(state, parsedResponse);
+  
+  const newSource = new VectorSource({
+    features: new GeoJSON().readFeatures(features)
+  });
+  if (state.layer === "exposure") exposureLayer.setSource(newSource);
+  if (state.layer === "intensity") intensityLayer.setSource(newSource);
+  if (state.layer === "updatedExposure") updatedExposureLayer.setSource(newSource);
+  
   setTimeout(loop, 5000);
 }
 loop();
 
+
+interface ZXY {
+  x: number, y: number, z: number
+}
+interface Estimate {
+  degree: number, estimate: any
+}
+interface LocatedEstimate {
+  location: ZXY, estimate: Estimate
+}
+
+function parseTilesIntoFeatures(state: State, inputs: LocatedEstimate[]): Feature[] {
+
+}
 
 /**********************************************
  *   EVENTS

@@ -29,6 +29,10 @@ class GeoGrid extends Grid {
             {z, x: 2, y: 2}
         ];
     }
+
+    public getBboxFor(location: ZXY): Bbox {
+        
+    }
 }
 
 const worldBbox = {latMin: -90, lonMin: -180, latMax: 90, lonMax: 180};
@@ -64,7 +68,11 @@ function getDataForBbox(productName: ProductName, bbox: Bbox) {
     const pyramid = getPyramid(productName);
     const locations = grid.getTilesInside(bbox);
     const results = locations.map(l => {
-        return { location: l, estimate: pyramid.getEstimateStreamAt(l).next() };
+        return { 
+            location: l, 
+            bbox: grid.getBboxFor(l),
+            estimate: pyramid.getEstimateStreamAt(l).next() 
+        };
     });
     return results;
 }
@@ -88,7 +96,7 @@ function parseStringToProductName(str: string): ProductName | undefined {
 function parseStringToBbox(str: any): Bbox | undefined {
     if (typeof str !== "string") return undefined;
     try {
-        const [latMin, lonMin, latMax, lonMax] = str.split(',').map(v => parseFloat(v));
+        const [lonMin, latMin, lonMax, latMax] = str.split(',').map(v => parseFloat(v));
         const bbox = {latMin, lonMin, latMax, lonMax};
         return bbox;   
     } catch (error) {
@@ -102,6 +110,10 @@ server.get(`/:productName`, (req, res) => {
     const bbox = parseStringToBbox(req.query.bbox);
     if (!bbox) res.send(`Couldn't parse bbox: ${req.query.bbox}`);
     const data = getDataForBbox(productName!, bbox!);
+
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET,OPTIONS");
+    res.header("Access-Control-Allow-HEADERS", "*");
     res.send(data);
 });
 

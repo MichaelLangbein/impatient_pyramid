@@ -1,5 +1,7 @@
 import { createExposureRaster, createFloatRaster, aggregateExposure, updateExposure } from "./businessLogic";
 import { Grid, Pyramid, IPyramid, RasterPyramid, meanFunction, ZXY } from "./pyramids.generic"
+import express from 'express';
+
 
 interface Bbox {
     latMin: number,
@@ -15,15 +17,16 @@ class GeoGrid extends Grid {
 
     public getTilesInside(bbox: Bbox, z?: number): ZXY[] {
         if (!z) { 
-            // if not given, pick z such that you return x by 8 or 8 by x tiles
+            // @TODO: if not given, pick z such that you return x by 8 or 8 by x tiles
+            z = 2;
             return this.getTilesInside(bbox, z);
         }
         // @TODO
         return [
-            {z: 2, x: 1, y: 1},
-            {z: 2, x: 1, y: 2},
-            {z: 2, x: 2, y: 1},
-            {z: 2, x: 2, y: 2}
+            {z, x: 1, y: 1},
+            {z, x: 1, y: 2},
+            {z, x: 2, y: 1},
+            {z, x: 2, y: 2}
         ];
     }
 }
@@ -57,21 +60,67 @@ function getPyramid(productName: ProductName): IPyramid<any> {
 }
 
 
-function getDataForBbox(ws: WebSocket, productName: ProductName, bbox: Bbox) {
-    const locations = grid.getTilesInside(bbox);
+function getDataForBbox(productName: ProductName, bbox: Bbox) {
     const pyramid = getPyramid(productName);
-    const streams = locations.map(l => {
-        return { location: l, stream: pyramid.getEstimateStreamAt(l) };
+    const locations = grid.getTilesInside(bbox);
+    const results = locations.map(l => {
+        return { location: l, estimate: pyramid.getEstimateStreamAt(l).next() };
     });
-
-    // function loop() {
-    //     const estimates = streams.map(s => {
-    //         return {location: s.location, estimate: s.stream.next()}
-    //     });
-    //     ws.send(JSON.stringify(estimates));
-    //     setTimeout(loop, 100);
-    // }
-    // loop();
-
+    return results;
 }
 
+
+const server = express();
+
+function parseStringToProductName(str: string): ProductName | undefined {
+    switch (str) {
+        case "exposure":
+            return "exposure";
+        case "intensity":
+            return "intensity";
+        case "updatedExposure":
+            return "updatedExposure";
+        default:
+            return undefined;
+    }
+}
+
+function parseStringToBbox(str: any): Bbox | undefined {
+    if (typeof str !== "string") return undefined;
+    try {
+        const [latMin, lonMin, latMax, lonMax] = str.split(',').map(v => parseFloat(v));
+        const bbox = {latMin, lonMin, latMax, lonMax};
+        return bbox;   
+    } catch (error) {
+        return undefined;
+    }
+}
+
+server.get(`/:productName`, (req, res) => {
+    const productName = parseStringToProductName(req.params.productName);
+    if (!productName) res.send(`Unknown product ${req.params.productName}`);
+    const bbox = parseStringToBbox(req.query.bbox);
+    if (!bbox) res.send(`Couldn't parse bbox: ${req.query.bbox}`);
+    const data = getDataForBbox(productName!, bbox!);
+    res.send(data);
+});
+
+server.listen(3000, () => console.log(`Server listening on port 3000`));
+
+
+// const server = new WebSocketServer({
+//     port: 1234
+// });
+// server.on('connection', (socket, request) => {
+//     socket.onmessage = (ev) => {
+//         const {product, bbox} = JSON.parse(ev.data.toString());
+//         const response = getDataForBbox(product, bbox);
+//         socket.send(JSON.stringify(response));
+//     }
+// });
+
+// const client = new WebSocket(`ws://localhost:1234`);
+// client.onopen = (ev) => {
+//     console.log("Client has connected");
+//     client.send(JSON.stringify({ product: "exposure", bbox: worldBbox }));
+// }

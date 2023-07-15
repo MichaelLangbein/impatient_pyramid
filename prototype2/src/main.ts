@@ -20,7 +20,7 @@ const updatedExposureAt$ = updatedExposure$.getEstimateStreamAt({z: 1, x: 1, y: 
 
 
 let samples = 0;
-const cutoff = 0.0125;
+const cutoff = 0.125;
 var degree = 0;
 while (degree < cutoff) {
     var {degree, estimate} = updatedExposureAt$.next();

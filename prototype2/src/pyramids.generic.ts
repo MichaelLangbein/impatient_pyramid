@@ -66,7 +66,7 @@ export class Pyramid<T> implements IPyramid<T> {
     private streams = new Map<string, IEstimateStream<T>>()
 
     constructor(
-        private grid: Grid,
+        readonly grid: Grid,
         private func: MapFunction<T>,
         private inputs: IPyramid<any>[], 
         private aggregationFunction: ReduceFunction<T>

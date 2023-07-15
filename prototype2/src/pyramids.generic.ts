@@ -95,12 +95,6 @@ export class Pyramid<T> implements IPyramid<T> {
     private recurseDown(location: ZXY) {
         const childLocations = this.grid.getChildren(location);
 
-        const childEstimateStreams: {[direction: string]: IEstimateStream<T>} = {};
-        for (const [direction, childLocation] of Object.entries(childLocations)) {
-            const childEstimateStream = this.getEstimateStreamAt(childLocation);
-            childEstimateStreams[direction] = childEstimateStream;
-        }
-
         const latestResults: DirectionEstimates<T> = {
             'tl': {degree: 0, estimate: undefined },
             'tr': {degree: 0, estimate: undefined },
@@ -111,7 +105,9 @@ export class Pyramid<T> implements IPyramid<T> {
         const makeEstimateFunction = () => {
 
             const randomlyPickedDirection = randomlyPickDirection(latestResults);
-            const result = childEstimateStreams[randomlyPickedDirection].next();
+            const location = childLocations[randomlyPickedDirection];
+            const childStream = this.getEstimateStreamAt(location);
+            const result = childStream.next();
             latestResults[randomlyPickedDirection] = result;
 
             let degreeTotal = 0;

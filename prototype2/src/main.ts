@@ -20,7 +20,7 @@ const updatedExposureAt$ = updatedExposure$.getEstimateStreamAt({z: 1, x: 1, y: 
 
 
 let samples = 0;
-const cutoff = 0.5;
+const cutoff = 0.0125;
 var degree = 0;
 while (degree < cutoff) {
     var {degree, estimate} = updatedExposureAt$.next();
@@ -30,7 +30,7 @@ while (degree < cutoff) {
 console.log(`Done after ${samples} samples, out of ${rows * cols} pixels`);
 
 
-const loc2: ZXY = {z: 1, x: 1, y: 1};
+const loc2: ZXY = {z: 4, x: 2, y: 4};
 
 const updatedExposure2$ = updatedExposure$.getEstimateStreamAt(loc2);
 
@@ -43,6 +43,8 @@ while (degree < cutoff) {
 }
 console.log(`Done after ${samples} samples, out of ${rows * cols} pixels`);
 
+// @ts-ignore
+console.log([...updatedExposure$.streams.keys()].sort())
 
 
 /**

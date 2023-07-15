@@ -25,8 +25,9 @@ class GeoGrid extends Grid {
         return [
             {z, x: 1, y: 1},
             {z, x: 1, y: 2},
-            {z, x: 2, y: 1},
-            {z, x: 2, y: 2}
+            {z, x: 2, y: 2},
+            {z, x: 4, y: 4},
+            {z, x: 3, y: 3}
         ];
     }
 
@@ -40,7 +41,7 @@ class GeoGrid extends Grid {
 
         const heightTotal = this.bbox.latMax - this.bbox.latMin;
         const height = heightTotal / rows;
-        const startH = this.bbox.latMin + location.x * height;
+        const startH = this.bbox.latMin + location.y * height;
 
         return {
             lonMin: startW,

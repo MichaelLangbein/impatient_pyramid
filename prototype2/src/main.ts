@@ -52,4 +52,12 @@ console.log([...updatedExposure$.streams.keys()].sort())
  *  - only reduce at every `m`'th step
  *  - do real fragility calculation
  *  - example of how `updatedExposurePyramid` can itself be used as another input without evaluating it beforehand.
+ * 
+ * tests:
+ * - get estimate for raster
+ * - get estimate for calculated value
+ * - verify that cache activates when a sub-pyramid to a previous request is requested
+ * - verify that one calculated pyramid can depend on another as input
+ *  - and that the input is then 
  */
+

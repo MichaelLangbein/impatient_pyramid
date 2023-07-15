@@ -7,6 +7,9 @@ import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import GeoJSON from 'ol/format/GeoJSON';
 import config from "./config.json";
+import Style from 'ol/style/Style';
+import Fill from 'ol/style/Fill';
+import Text from 'ol/style/Text';
 
 
 
@@ -51,12 +54,33 @@ const baseLayer = new TileLayer({
 
 const exposureLayer = new VectorLayer({
   source: new VectorSource({}),
-  opacity: 0.8
+  style: (feature) => {
+    const props = feature.getProperties();
+    return new Style({
+      fill: new Fill({ color: `rgb(100, 100, 100)` }),
+      text: new Text({
+        text: `exposure \n degree: ${(props.degree * 100).toFixed(4)}%`,
+        fill: new Fill({ color: `rgb(256, 256, 256)` }),
+      })
+    })
+  },
+  opacity: 0.6
 });
 
 const intensityLayer = new VectorLayer({
   source: new VectorSource({}),
-  opacity: 0.8
+  opacity: 0.8,
+  style: (feature) => {
+    const props = feature.getProperties();
+    const {r, g, b} = colorScale(props.estimate, 0, 1);
+    return new Style({
+      fill: new Fill({ color: `rgb(${r}, ${g}, ${b})` }),
+      text: new Text({
+        text: `intensity \n degree: ${(props.estimate * 100).toFixed(4)}%`,
+        fill: new Fill({ color: `rgb(256, 256, 256)` }),
+      })
+    })
+  },
 });
 
 const updatedExposureLayer = new VectorLayer({
@@ -87,22 +111,28 @@ const map = new Map({
 
 
 async function loop() {
-  const [lonMin, latMin, lonMax, latMax] = view.calculateExtent(map.getSize());
-  const bboxString = `${lonMin},${latMin},${lonMax},${latMax}`;
+
+  try {
+    const [lonMin, latMin, lonMax, latMax] = view.calculateExtent(map.getSize());
+    const bboxString = `${lonMin},${latMin},${lonMax},${latMax}`;
+    
+    const response = await fetch(`${config.server}/${state.layer}?bbox=${bboxString}`);
+    const parsedResponse = await response.json();
+    
+    const geoJson = parseTilesIntoFeatures(parsedResponse);
+    
+    const newSource = new VectorSource({
+      features: new GeoJSON().readFeatures(geoJson)
+    });
+    if (state.layer === "exposure") exposureLayer.setSource(newSource);
+    if (state.layer === "intensity") intensityLayer.setSource(newSource);
+    if (state.layer === "updatedExposure") updatedExposureLayer.setSource(newSource);    
+  } 
+  catch (error) {
+    console.warn(error);
+  }
   
-  const response = await fetch(`${config.server}/${state.layer}?bbox=${bboxString}`);
-  const parsedResponse = await response.json();
-  
-  const geoJson = parseTilesIntoFeatures(parsedResponse);
-  
-  const newSource = new VectorSource({
-    features: new GeoJSON().readFeatures(geoJson)
-  });
-  if (state.layer === "exposure") exposureLayer.setSource(newSource);
-  if (state.layer === "intensity") intensityLayer.setSource(newSource);
-  if (state.layer === "updatedExposure") updatedExposureLayer.setSource(newSource);
-  
-  setTimeout(loop, 5000);
+  setTimeout(loop, 1000);
 }
 loop();
 
@@ -165,11 +195,30 @@ function handleMapClick(evt: MapBrowserEvent<any>) {
 function handleActivation(layer: State["layer"]) {
   state.layer = layer;
   updateMap(state);
+  updateControl(state);
 }
 
 /**********************************************
  *   STATE -> UI
  *********************************************/
+
+function updateControl(state: State) {
+  if (state.layer === "exposure") {
+    exposureDiv.classList.replace('inactive', 'active');
+    intensityDiv.classList.replace('active', 'inactive');
+    updatedExposureDiv.classList.replace('active', 'inactive');
+  }
+  else if (state.layer === "intensity") {
+    exposureDiv.classList.replace('active', 'inactive');
+    intensityDiv.classList.replace('inactive', 'active');
+    updatedExposureDiv.classList.replace('active', 'inactive');
+  }
+  else if (state.layer === "updatedExposure") {
+    exposureDiv.classList.replace('active', 'inactive');
+    intensityDiv.classList.replace('active', 'inactive');
+    updatedExposureDiv.classList.replace('inactive', 'active');
+  }
+}
 
 function updateMap(state: State) {
   if (state.layer === "exposure") {
@@ -193,3 +242,12 @@ function updateMap(state: State) {
 /**********************************************
  *   HELPERS
  *********************************************/
+
+
+function colorScale(val: number, from: number, to: number) {
+  let r, g, b = 0;
+  const degree = (val - from) / (to - from);
+  r = 255 * degree;
+  g = 255 * (1 - degree);
+  return {r, g, b};
+}

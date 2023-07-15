@@ -169,12 +169,12 @@ export class RasterPyramid<T> extends Pyramid<T> {
 
 export const meanFunction: ReduceFunction<number> = (args: DirectionEstimates<number>, loc: ZXY) => {
     const estimates = Object.entries(args).map(e => e[1]);
-    const len = estimates.length;
     const validEstimates = estimates.filter(e => e.degree >= 0 && e.estimate !== undefined);
     let mean = 0;
     for (const {degree, estimate} of validEstimates) {
-        mean += degree * estimate! / len;
+        mean += degree * estimate!;
     }
+    mean /= validEstimates.map(e => e.degree).reduce((last, curr) => last + curr, 0);
     return mean;
 }
 

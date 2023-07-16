@@ -113,7 +113,7 @@ const map = new Map({
 async function loop() {
 
   try {
-    const z = Math.round(view.getZoom() || 1);
+    const z = Math.round(view.getZoom() || 1) + 2;
     const [lonMin, latMin, lonMax, latMax] = view.calculateExtent(map.getSize());
     const bboxString = `${lonMin},${latMin},${lonMax},${latMax}`;
     

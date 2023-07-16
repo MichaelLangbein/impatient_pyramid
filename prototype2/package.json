@@ -4,7 +4,8 @@
   "description": "",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "npx nodemon"
+    "dev": "npx nodemon",
+    "serve": "npx ts-node src/server"
   },
   "author": "",
   "license": "UNLICENSED",

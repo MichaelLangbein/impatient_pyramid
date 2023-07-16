@@ -28,10 +28,14 @@ class GeoGrid extends Grid {
 
         const fullBbox = this.bbox;
         const {rows, cols} = this.rowsColsAtLevel(z);
-        const colStart = Math.floor(cols * (bbox.lonMin - fullBbox.lonMin) / (fullBbox.lonMax - fullBbox.lonMin) );
-        const colEnd   = Math.ceil( cols * (bbox.lonMax - fullBbox.lonMin) / (fullBbox.lonMax - fullBbox.lonMin) );
-        const rowStart = Math.floor(rows * (bbox.latMin - fullBbox.latMin) / (fullBbox.latMax - fullBbox.latMin) );
-        const rowEnd   = Math.ceil( rows * (bbox.latMax - fullBbox.latMin) / (fullBbox.latMax - fullBbox.latMin) );
+        let colStart = Math.floor(cols * (bbox.lonMin - fullBbox.lonMin) / (fullBbox.lonMax - fullBbox.lonMin) );
+        let colEnd   = Math.ceil( cols * (bbox.lonMax - fullBbox.lonMin) / (fullBbox.lonMax - fullBbox.lonMin) );
+        let rowStart = Math.floor(rows * (bbox.latMin - fullBbox.latMin) / (fullBbox.latMax - fullBbox.latMin) );
+        let rowEnd   = Math.ceil( rows * (bbox.latMax - fullBbox.latMin) / (fullBbox.latMax - fullBbox.latMin) );
+        colStart     = Math.max(colStart, 1);
+        colEnd       = Math.min(colEnd, cols);
+        rowStart     = Math.max(rowStart, 1);
+        rowEnd       = Math.min(rowEnd, rows);
 
         const locations: ZXY[] = [];
         for (let row = rowStart; row <= rowEnd; row++) {

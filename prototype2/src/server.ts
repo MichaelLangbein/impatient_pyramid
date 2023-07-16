@@ -15,20 +15,32 @@ class GeoGrid extends Grid {
         super(nrLevels);
     }
 
-    public getTilesInside(bbox: Bbox, z?: number): ZXY[] {
-        if (!z) { 
-            // @TODO: if not given, pick z such that you return x by 8 or 8 by x tiles
-            z = 4;
-            return this.getTilesInside(bbox, z);
+    public getTilesInside(bbox: Bbox, z: number): ZXY[] {
+/**
+ *              bbox.lonMin         bbox.lonMax 
+ *                        |          |             
+ *    fullBbox.lonMin     |          |                       fullBbox.latMin
+ *    |-------------------|----------|-----------------------|
+ *    0                                                      cols
+ * 
+ *    colStart = bbox.lonMin / (fullBbox.lonMax - fullBbox.lonMin) * cols
+ */
+
+        const fullBbox = this.bbox;
+        const {rows, cols} = this.rowsColsAtLevel(z);
+        const colStart = Math.floor(cols * (bbox.lonMin - fullBbox.lonMin) / (fullBbox.lonMax - fullBbox.lonMin) );
+        const colEnd   = Math.ceil( cols * (bbox.lonMax - fullBbox.lonMin) / (fullBbox.lonMax - fullBbox.lonMin) );
+        const rowStart = Math.floor(rows * (bbox.latMin - fullBbox.latMin) / (fullBbox.latMax - fullBbox.latMin) );
+        const rowEnd   = Math.ceil( rows * (bbox.latMax - fullBbox.latMin) / (fullBbox.latMax - fullBbox.latMin) );
+
+        const locations: ZXY[] = [];
+        for (let row = rowStart; row <= rowEnd; row++) {
+            for (let col = colStart; col <= colEnd; col++) {
+                locations.push({z, x: col, y: row});
+            }
         }
-        // @TODO
-        return [
-            {z, x: 1, y: 1},
-            {z, x: 1, y: 2},
-            {z, x: 2, y: 2},
-            {z, x: 4, y: 4},
-            {z, x: 3, y: 3}
-        ];
+
+        return locations;
     }
 
     
@@ -81,9 +93,9 @@ function getPyramid(productName: ProductName): IPyramid<any> {
 }
 
 
-function getDataForBbox(productName: ProductName, bbox: Bbox) {
+function getDataForBbox(productName: ProductName, bbox: Bbox, z: number) {
     const pyramid = getPyramid(productName);
-    const locations = grid.getTilesInside(bbox);
+    const locations = grid.getTilesInside(bbox, z);
     const results = locations.map(l => {
         return { 
             location: l, 
@@ -121,12 +133,18 @@ function parseStringToBbox(str: any): Bbox | undefined {
     }
 }
 
+function parseStringIntoZ(str: any): number | undefined {
+    return parseFloat(str);
+}
+
 server.get(`/:productName`, (req, res) => {
     const productName = parseStringToProductName(req.params.productName);
     if (!productName) res.send(`Unknown product ${req.params.productName}`);
     const bbox = parseStringToBbox(req.query.bbox);
     if (!bbox) res.send(`Couldn't parse bbox: ${req.query.bbox}`);
-    const data = getDataForBbox(productName!, bbox!);
+    const z = parseStringIntoZ(req.query.z);
+    if (!z) res.send(`Couldn't parse z: ${req.query.z}`);
+    const data = getDataForBbox(productName!, bbox!, z!);
 
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Methods", "GET,OPTIONS");
@@ -136,20 +154,3 @@ server.get(`/:productName`, (req, res) => {
 
 server.listen(3000, () => console.log(`Server listening on port 3000`));
 
-
-// const server = new WebSocketServer({
-//     port: 1234
-// });
-// server.on('connection', (socket, request) => {
-//     socket.onmessage = (ev) => {
-//         const {product, bbox} = JSON.parse(ev.data.toString());
-//         const response = getDataForBbox(product, bbox);
-//         socket.send(JSON.stringify(response));
-//     }
-// });
-
-// const client = new WebSocket(`ws://localhost:1234`);
-// client.onopen = (ev) => {
-//     console.log("Client has connected");
-//     client.send(JSON.stringify({ product: "exposure", bbox: worldBbox }));
-// }

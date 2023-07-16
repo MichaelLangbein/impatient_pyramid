@@ -113,10 +113,11 @@ const map = new Map({
 async function loop() {
 
   try {
+    const z = Math.round(view.getZoom() || 1);
     const [lonMin, latMin, lonMax, latMax] = view.calculateExtent(map.getSize());
     const bboxString = `${lonMin},${latMin},${lonMax},${latMax}`;
     
-    const response = await fetch(`${config.server}/${state.layer}?bbox=${bboxString}`);
+    const response = await fetch(`${config.server}/${state.layer}?bbox=${bboxString}&z=${z}`);
     const parsedResponse = await response.json();
     
     const geoJson = parseTilesIntoFeatures(parsedResponse);
@@ -132,7 +133,7 @@ async function loop() {
     console.warn(error);
   }
   
-  setTimeout(loop, 1000);
+  setTimeout(loop, 5000);
 }
 loop();
 

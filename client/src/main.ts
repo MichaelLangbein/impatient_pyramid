@@ -10,6 +10,7 @@ import config from "./config.json";
 import Style from 'ol/style/Style';
 import Fill from 'ol/style/Fill';
 import Text from 'ol/style/Text';
+import { ObjectEvent } from 'ol/Object';
 
 
 
@@ -59,7 +60,10 @@ const exposureLayer = new VectorLayer({
     return new Style({
       fill: new Fill({ color: `rgb(100, 100, 100)` }),
       text: new Text({
-        text: `exposure \n degree: ${(props.degree * 100).toFixed(4)}%`,
+        text: `
+        ${feature.getId()} \n
+         degree: ${(props.degree * 100).toFixed(4)}%
+        `,
         fill: new Fill({ color: `rgb(256, 256, 256)` }),
       })
     })
@@ -69,23 +73,54 @@ const exposureLayer = new VectorLayer({
 
 const intensityLayer = new VectorLayer({
   source: new VectorSource({}),
-  opacity: 0.8,
   style: (feature) => {
     const props = feature.getProperties();
     const {r, g, b} = colorScale(props.estimate, 0, 1);
     return new Style({
       fill: new Fill({ color: `rgb(${r}, ${g}, ${b})` }),
       text: new Text({
-        text: `intensity \n degree: ${(props.estimate * 100).toFixed(4)}%`,
+        text: `
+          ${feature.getId()} \n
+          degree: ${(props.degree * 100).toFixed(4)}% \n
+          intensity: ${props.estimate.toFixed(4)}
+        `,
         fill: new Fill({ color: `rgb(256, 256, 256)` }),
       })
     })
   },
+  opacity: 0.6,
 });
 
 const updatedExposureLayer = new VectorLayer({
   source: new VectorSource({}),
-  opacity: 0.8
+  style: (feature) => {
+    const props = feature.getProperties();
+
+    const sums = {d0: 0, d1: 0, d2: 0, d3: 0};
+    for (const [material, states] of Object.entries(props.estimate.damage)) {
+      const count = props.estimate.nrBuildings[material];
+      for (const [damageClass, degree] of Object.entries(states as any)) {
+        // @ts-ignore
+        sums[damageClass] += degree * count;
+      }
+    }
+    const countTotal = (Object.values(props.estimate.nrBuildings) as number[]).reduce((last, curr) => last + curr, 0);
+    const damageClass = ((1 * sums.d0 + 2 * sums.d1 + 3 * sums.d2 + 4 * sums.d3) / countTotal) - 1;
+
+    const {r, g, b} = colorScale(damageClass, 0, 3);
+    return new Style({
+      fill: new Fill({ color: `rgb(${r}, ${g}, ${b})` }),
+      text: new Text({
+        text: `
+          ${feature.getId()} \n
+          degree: ${(props.degree * 100).toFixed(4)}% \n
+          Damage class: ${damageClass.toFixed(2)}
+        `,
+        fill: new Fill({ color: `rgb(256, 256, 256)` }),
+      })
+    })
+  },
+  opacity: 0.6
 });
 
 
@@ -113,7 +148,7 @@ const map = new Map({
 async function loop() {
 
   try {
-    const z = Math.round(view.getZoom() || 1) + 2;
+    const z = Math.round(view.getZoom() || 1) + 1;
     const [lonMin, latMin, lonMax, latMax] = view.calculateExtent(map.getSize());
     const bboxString = `${lonMin},${latMin},${lonMax},${latMax}`;
     
@@ -133,7 +168,7 @@ async function loop() {
     console.warn(error);
   }
   
-  setTimeout(loop, 5000);
+  setTimeout(loop,1000);
 }
 loop();
 
@@ -156,6 +191,7 @@ function parseTilesIntoFeatures(inputs: LocatedEstimate[]): Feature[] {
   for (const input of inputs) {
     const feature = {
       type: "Feature",
+      id: `${input.location.z}/${input.location.x}/${input.location.y}`,
       properties: input.estimate,
       geometry: {
         type: "Polygon",

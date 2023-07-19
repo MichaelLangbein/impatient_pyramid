@@ -1,4 +1,4 @@
-import { DirectionEstimates } from "./pyramids.generic";
+import { DirectionEstimates } from "./pyramids";
 
 
 export function sum(data: any[]) {

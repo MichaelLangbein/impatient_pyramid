@@ -1,5 +1,5 @@
 import { createExposureRaster, createFloatRaster, aggregateExposure, updateExposure } from './businessLogic';
-import { ZXY, Grid, RasterPyramid, Pyramid, meanFunction } from './pyramids.generic';
+import { ZXY, Grid, RasterPyramid, Pyramid, meanFunction } from './pyramids';
 
 
 

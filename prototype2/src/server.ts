@@ -1,4 +1,4 @@
-import { createExposureRaster, createFloatRaster, aggregateExposure, updateExposure } from "./businessLogic";
+import { createExposureRaster, createIntensityRaster, aggregateExposure, updateExposure } from "./businessLogic";
 import { Grid, Pyramid, IPyramid, RasterPyramid, meanFunction, ZXY } from "./pyramids"
 import express from 'express';
 
@@ -68,7 +68,7 @@ class GeoGrid extends Grid {
     }
 }
 
-const worldBbox = {latMin: -90, lonMin: -180, latMax: 90, lonMax: 180};
+const worldBbox = {latMin: -10, lonMin: -10, latMax: 10, lonMax: 10};
 
 const grid = new GeoGrid(12, worldBbox);
 
@@ -76,7 +76,7 @@ const nrPixels = grid.countBottomUnder({z: 1, x: 1, y: 1});
 const rows = Math.round(Math.sqrt(nrPixels));
 const cols = rows;
 
-const intensity$ = new RasterPyramid(grid, createFloatRaster(rows, cols), meanFunction);
+const intensity$ = new RasterPyramid(grid, createIntensityRaster(rows, cols), meanFunction);
 
 const exposure$ = new RasterPyramid(grid, createExposureRaster(rows, cols), aggregateExposure);
 

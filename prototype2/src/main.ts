@@ -1,4 +1,4 @@
-import { createExposureRaster, createFloatRaster, aggregateExposure, updateExposure } from './businessLogic';
+import { createExposureRaster, createIntensityRaster, aggregateExposure, updateExposure } from './businessLogic';
 import { ZXY, Grid, RasterPyramid, Pyramid, meanFunction } from './pyramids';
 
 
@@ -9,7 +9,7 @@ const cols = rows;
 
 const grid = new Grid(level);
 
-const intensity$ = new RasterPyramid(grid, createFloatRaster(rows, cols), meanFunction);
+const intensity$ = new RasterPyramid(grid, createIntensityRaster(rows, cols), meanFunction);
 
 const exposure$ = new RasterPyramid(grid, createExposureRaster(rows, cols), aggregateExposure);
 

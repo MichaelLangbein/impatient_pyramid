@@ -57,8 +57,12 @@ const exposureLayer = new VectorLayer({
   source: new VectorSource({}),
   style: (feature) => {
     const props = feature.getProperties();
+    const nrBuildings = props.estimate.nrBuildings;
+    const weightedNr = 1 * nrBuildings.wood + 5 * nrBuildings.brick + 10 * nrBuildings.steel;
+    const weightedNrNormalized = weightedNr / 10000;
+    const grayTone = 255 * (1 - weightedNrNormalized);
     return new Style({
-      fill: new Fill({ color: `rgb(100, 100, 100)` }),
+      fill: new Fill({ color: `rgb(${grayTone}, ${grayTone}, ${grayTone})` }),
       text: new Text({
         text: `
         ${feature.getId()} \n
@@ -75,7 +79,7 @@ const intensityLayer = new VectorLayer({
   source: new VectorSource({}),
   style: (feature) => {
     const props = feature.getProperties();
-    const {r, g, b} = colorScale(props.estimate, 0, 1);
+    const {r, g, b} = colorScale(props.estimate, 0, 10);
     return new Style({
       fill: new Fill({ color: `rgb(${r}, ${g}, ${b})` }),
       text: new Text({
@@ -107,7 +111,7 @@ const updatedExposureLayer = new VectorLayer({
     const countTotal = (Object.values(props.estimate.nrBuildings) as number[]).reduce((last, curr) => last + curr, 0);
     const damageClass = ((1 * sums.d0 + 2 * sums.d1 + 3 * sums.d2 + 4 * sums.d3) / countTotal) - 1;
 
-    const {r, g, b} = colorScale(damageClass, 0, 3);
+    const {r, g, b} = colorScale(damageClass, 0, 2);
     return new Style({
       fill: new Fill({ color: `rgb(${r}, ${g}, ${b})` }),
       text: new Text({

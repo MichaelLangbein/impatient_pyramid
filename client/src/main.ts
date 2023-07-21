@@ -59,10 +59,12 @@ const exposureLayer = new VectorLayer({
     const props = feature.getProperties();
     const nrBuildings = props.estimate.nrBuildings;
     const weightedNr = 1 * nrBuildings.wood + 5 * nrBuildings.brick + 10 * nrBuildings.steel;
-    const weightedNrNormalized = weightedNr / 10000;
-    const grayTone = 255 * (1 - weightedNrNormalized);
+    const weightedNrNormalized = weightedNr / 5000;
+    const nrWood = nrBuildings.wood / 1000;
+    const nrBrick = nrBuildings.brick / 1000;
+    const nrSteel = nrBuildings.steel / 1000;
     return new Style({
-      fill: new Fill({ color: `rgb(${grayTone}, ${grayTone}, ${grayTone})` }),
+      fill: new Fill({ color: `rgba(${nrWood * 255}, ${nrBrick * 255}, ${nrSteel * 255}, ${weightedNrNormalized})` }),
       text: new Text({
         text: `
         ${feature.getId()} \n
@@ -112,8 +114,9 @@ const updatedExposureLayer = new VectorLayer({
     const damageClass = ((1 * sums.d0 + 2 * sums.d1 + 3 * sums.d2 + 4 * sums.d3) / countTotal) - 1;
 
     const {r, g, b} = colorScale(damageClass, 0, 2);
+    const a = countTotal / 5000;
     return new Style({
-      fill: new Fill({ color: `rgb(${r}, ${g}, ${b})` }),
+      fill: new Fill({ color: `rgba(${r}, ${g}, ${b}, ${a})` }),
       text: new Text({
         text: `
           ${feature.getId()} \n
@@ -140,7 +143,7 @@ const popupOverlay = new Overlay({
 
 const map = new Map({
   view, layers: [
-    // baseLayer,
+    baseLayer,
     exposureLayer,
     intensityLayer,
     updatedExposureLayer
@@ -152,7 +155,7 @@ const map = new Map({
 async function loop() {
 
   try {
-    const z = Math.round(view.getZoom() || 1) + 1;
+    const z = Math.round(view.getZoom() || 1) - 1;
     const [lonMin, latMin, lonMax, latMax] = view.calculateExtent(map.getSize());
     const bboxString = `${lonMin},${latMin},${lonMax},${latMax}`;
     

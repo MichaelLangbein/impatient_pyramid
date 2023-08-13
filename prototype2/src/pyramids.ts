@@ -75,12 +75,12 @@ export interface IPyramid<T> {
 }
 
 
-export function collectAggregationFunction<T>(arg: DirectionEstimates<T>, loc: ZXY): T {
-    const collection = [];
-    for (const [key, value] of Object.entries(arg)) {
-        collection.
-    }
-}
+// export function collectAggregationFunction<T>(arg: DirectionEstimates<T>, loc: ZXY): T {
+//     const collection = [];
+//     for (const [key, value] of Object.entries(arg)) {
+//         collection.
+//     }
+// }
 
 export class Pyramid<T> implements IPyramid<T> {
     private streams = new Map<string, IEstimateStream<T>>()
@@ -89,7 +89,7 @@ export class Pyramid<T> implements IPyramid<T> {
         readonly grid: Grid,
         private func: MapFunction<T>,
         private inputs: IPyramid<any>[], 
-        private aggregationFunction: ReduceFunction<T> = collectAggregationFunction<T>
+        private aggregationFunction: ReduceFunction<T>
     ) {}
 
     getEstimateStreamAt(location: ZXY) {
